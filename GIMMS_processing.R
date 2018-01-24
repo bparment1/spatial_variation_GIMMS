@@ -136,17 +136,20 @@ GDALinfo_raster <- GDALinfo(raster_file,returnScaleOffset = F) #use GDAL info ut
 
 #str(GDALinfo_hdf) ## Class GDLobj
 raster_subdataset <- attributes(GDALinfo_raster)$subdsmdata
-#print(modis_subdataset)
+print(raster_subdataset)
 
 ### Generate a data.frame from scientific datasets
-#hdf_df <- (strsplit(modis_subdataset,":"))
-#length(modis_subdataset)
-#hdf_df <- as.data.frame(do.call(rbind,hdf_df),stringsAsFactors=F)
-#hdf_df <- data.frame(lapply(hdf_df, as.character))
+raster_df <- (strsplit(raster_subdataset,":"))
+length(raster_subdataset)
+raster_df <- as.data.frame(do.call(rbind,raster_df),stringsAsFactors=F)
+raster_df <- data.frame(lapply(raster_df, as.character))
+
 #hdf_df %>% 
 #  mutate_all(as.character)
 
-#names(hdf_df) <- c("subdataset_name","description","dir","product","var_name")
+#names(raster_df) <- c("subdataset_name","description","dir","product","var_name")
+names(raster_df) <- c("subdataset_name","dir","var_name")
+
 #Select automatically QC flag!!
 #View(hdf_df)
 
