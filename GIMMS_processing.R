@@ -95,6 +95,9 @@ num_cores <- 2 # number of cores
 
 options(scipen=999)
 
+#set up the working directory
+#Create output directory
+
 if(is.null(out_dir)){
   out_dir <- in_dir #output will be created in the input dir
   
@@ -110,9 +113,11 @@ if(create_out_dir_param==TRUE){
 }
 
 #######################################
-### PART I READ AND PREPARE DATA #######
-#set up the working directory
-#Create output directory
+### PART I DOWNLOAD AND PREPARE DATA #######
+
+#Will be a function
+
+## Information: https://nex.nasa.gov/nex/projects/1349/wiki/general_data_description_and_access/
 
 ## Download data here:
 #https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/
@@ -123,10 +128,20 @@ lf_name <- download.file("https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/00FI
 
 lf_df <- read.table("00FILE-LIST.txt",stringsAsFactors = F)
 
-file1 <- download.file(lf_df[1,1],basename(lf_df[1,1]))
-#https://ecocast.arc.nasa.gov/data/pub/gimms/
+## Make this a function later on!!!
+
+nf <- 3 #number of files to download
+list_raster_file <- vector("list",length=nf)
+for(i in 1:nf){
+  raster_file <- basename(lf_df[i,1]) #this is the outfile
   
-raster_file <- basename(lf_df[1,1])
+  file1 <- download.file(lf_df[i,1],raster_file)
+  #https://ecocast.arc.nasa.gov/data/pub/gimms/
+  
+  list_raster_file[[i]] <- raster_file
+}
+
+##### Next import in Tif format the NCDF
 
 GDALinfo_raster <- GDALinfo(raster_file,returnScaleOffset = F) #use GDAL info utility
 
@@ -150,13 +165,21 @@ raster_df <- data.frame(lapply(raster_df, as.character))
 #names(raster_df) <- c("subdataset_name","description","dir","product","var_name")
 names(raster_df) <- c("subdataset_name","dir","var_name")
 
+raster_df
+
 #Select automatically QC flag!!
 #View(hdf_df)
 
-#write.table(hdf_df,"hdf_subdataset.txt",sep=",")
+write.table(raster_df,"raster_subdataset.txt",sep=",")
 
-#modis_subset_layer_Day <- paste("HDF4_EOS:EOS_GRID:",
-#                                hdf_file,subdataset,sep="")
+modis_subset_layer <- paste("HDF4_EOS:EOS_GRID:",
+                                raster_file,subdataset,sep="")
+
+raster_subset_layer <- paste0("NETCDF:","ndvi3g_geo_v1_1981_0712.nc4",":","ndvi")
+r <- readGDAL(raster_subset_layer) #read specific dataset in hdf file and make SpatialGridDataFrame
+
+
+r_test <- brick(raster_file,"ndvi")
 
 #NDVI variable
 #modis_layer_str1 <- unlist(strsplit(modis_subdataset[1],"\""))[3] #Get day NDVI layer
@@ -168,13 +191,13 @@ names(raster_df) <- c("subdataset_name","dir","var_name")
 
 #r <- readGDAL(modis_subset_layer_Day) #read specific dataset in hdf file and make SpatialGridDataFrame
 
-#r  <-raster(r) #convert to raser object
+#r  <- brick(r) #convert to raser object
 
-#plot(r,main="NDVI ~250m")
-#r #print properties
-#res(r) #spatial resolution
-#NAvalue(r) #find the NA flag value
-#dataType(r) #find the dataTyre
+plot(r,main="NDVI ~8km")
+r #print properties
+res(r) #spatial resolution
+NAvalue(r) #find the NA flag value
+dataType(r) #find the dataTyre
 
 # for more control, you can set dataType and/or compress the files
 #data_type_str <- "FLT4S"
@@ -190,5 +213,10 @@ names(raster_df) <- c("subdataset_name","dir","var_name")
 #### Next steps to consider:
 ## Use the name from MODIS file because it contains information on tile location, date and product type
 ## Use QC index to screen for low value pixels
+
+########### PART 3: Now do the analyses ###########
+
+
+
 
 ######################### END OF SCRIPT ##############################
