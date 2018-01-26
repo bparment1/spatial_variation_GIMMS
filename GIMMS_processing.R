@@ -2,8 +2,8 @@
 ## Help in processing modis data for the workshop group.
 ##
 ##
-## DATE CREATED: 12/13/2017
-## DATE MODIFIED: 12/14/2017
+## DATE CREATED: 01/24/2018
+## DATE MODIFIED: 01/26/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -74,13 +74,11 @@ in_dir <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/data"
 
 out_dir <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/outputs"
 
-## Set up Benoit
-#in_dir <- "/nfs/bparmentier-data/Data/projects/managing_hurricanes/data"
-#out_dir <- "/nfs/bparmentier-data/Data/projects/managing_hurricanes/outputs"
-
-hdf_file <-"test.hdf"
+#hdf_file <-"test.hdf"
 
 #NA_flag <- -999999
+NA_flag_vall <- NULL
+
 file_format <- ".tif"
 scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD BE 10,000 AT LEAST
 #ARGS 7
@@ -172,14 +170,30 @@ raster_df
 
 write.table(raster_df,"raster_subdataset.txt",sep=",")
 
-modis_subset_layer <- paste("HDF4_EOS:EOS_GRID:",
-                                raster_file,subdataset,sep="")
+#modis_subset_layer <- paste("HDF4_EOS:EOS_GRID:",
+#                                raster_file,subdataset,sep="")
 
-raster_subset_layer <- paste0("NETCDF:","ndvi3g_geo_v1_1981_0712.nc4",":","ndvi")
-r <- readGDAL(raster_subset_layer) #read specific dataset in hdf file and make SpatialGridDataFrame
+#raster_subset_layer <- paste0("NETCDF:","ndvi3g_geo_v1_1981_0712.nc4",":","ndvi")
+#r <- readGDAL(raster_subset_layer) #read specific dataset in hdf file and make SpatialGridDataFrame
+#r  <- brick(r) #convert to raser object
 
 
-r_test <- brick(raster_file,"ndvi")
+
+lf<- mixedsort(list.files(pattern="*.nc4"))
+
+#lf[2]
+
+#### New import function can be created here...
+i <- 2
+
+raster_file <- lf[i]
+r <- brick(raster_file,"ndvi")
+
+if(is.null(NA_flag_val)){
+  NA_flag_val <- NAvalue(r)
+  
+  
+}
 
 #NDVI variable
 #modis_layer_str1 <- unlist(strsplit(modis_subdataset[1],"\""))[3] #Get day NDVI layer
@@ -191,32 +205,57 @@ r_test <- brick(raster_file,"ndvi")
 
 #r <- readGDAL(modis_subset_layer_Day) #read specific dataset in hdf file and make SpatialGridDataFrame
 
-#r  <- brick(r) #convert to raser object
 
-plot(r,main="NDVI ~8km")
-r #print properties
-res(r) #spatial resolution
-NAvalue(r) #find the NA flag value
-dataType(r) #find the dataTyre
+plot(r,y=1,main="NDVI ~8km",zlim=c(-10000,10000))
+r #print propind the NA flag value
+data_type_str <- dataType(r) #find the dataTyre
 
 # for more control, you can set dataType and/or compress the files
 #data_type_str <- "FLT4S"
-#NA_flag_val <- NAvalue(r2)
+#A_flag_val <- NAvalue(r2)
 
-#writeRaster(r2,
+#This is a brick!!!! so need to write out every layer!!
+
+#raster_name <- ""
+  
+#rwriteRaster(r,
 #            file.path(out_dir,raster_name),
 #            overwrite=TRUE,
 #            NAflag=NA_flag_val,
 #            datatype=data_type_str,
 #            options=c("COMPRESS=LZW"))
 
-#### Next steps to consider:
+#writeRaster(r_stack,
+#            filename=file.path(out_dir,paste("pysal_mle",".rst",sep="")),
+#            bylayer=T,suffix=paste(names(r_stack),"_",out_suffix,sep=""),
+#            overwrite=TRUE,
+#            NAflag=NA_flag_val,
+#            datatype=data_type_str,
+#            options=c("COMPRESS=LZW"))
+
+#names_hdf<-as.character(unlist(strsplit(x=basename(hdf), split="[.]")))
+
+names_ncdf <-as.character(unlist(strsplit(x=basename(raster_file), split="[_]")))
+names_ncdf <- names_ncdf[-length(names_ncdf)]
+
+raster_name <- paste0(paste(names_ncdf,collapse = "_"),file_format)
+
+writeRaster(r,
+            filename=file.path(out_dir,paste(raster_name,file_format,sep="")),
+            bylayer=T,suffix=paste(names(r),"_",out_suffix,sep=""),
+            overwrite=TRUE,
+            NAflag=NA_flag_val,
+            datatype=data_type_str,
+            options=c("COMPRESS=LZW"))
+
+                      #### Next steps to consider:
 ## Use the name from MODIS file because it contains information on tile location, date and product type
 ## Use QC index to screen for low value pixels
 
 ########### PART 3: Now do the analyses ###########
 
-
+#Tthis can be in another script.
 
 
 ######################### END OF SCRIPT ##############################
+
