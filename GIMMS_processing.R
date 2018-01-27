@@ -256,6 +256,112 @@ writeRaster(r,
 
 #Tthis can be in another script.
 
+lf_gimms <- mixedsort(list.files(pattern=file_format,path="."))
+
+
+
+r <- raster(lf_gimms[1])
+
+#generate filters for 10 lags: quick solution
+
+list_filters<-lapply(1:10,FUN=autocor_filter_fun,f_type="queen") #generate 10 filters
+#moran_list <- lapply(list_filters,FUN=Moran,x=r)
+
+list_param_moran <- list(list_filters=list_filters,r_stack=r_stack)
+#moran_r <-moran_multiple_fun(1,list_param=list_param_moran)
+nlayers(r_stack) 
+moran_I_df <-mclapply(1:nlayers(r_stack), list_param=list_param_moran, 
+                      FUN=moran_multiple_fun,mc.preschedule=FALSE,
+                      mc.cores = 10) #This is the end bracket from mclapply(...) statement
+
+moran_df <- do.call(cbind,moran_I_df) #bind Moran's I value 10*nlayers data.frame
+moran_df$lag <-1:nrow(moran_df)
+
+#prepare to automate the plotting of   all columns
+mydata<-moran_df
+dd <- do.call(make.groups, mydata[,-ncol(mydata)]) 
+dd$lag <- mydata$lag 
+
+layout_m<-c(1,3) #one row three columns
+res_pix <-  500
+png(paste("Figure_0b_graphic_abstract_spatial_correlogram_tmax_prediction_models_gam_levelplot_",date_selected,out_prefix,".png", sep=""),
+    height=res_pix*layout_m[1],width=res_pix*layout_m[2])
+
+p<-xyplot(data ~ lag | which, dd,type="b",main="Spatial content in interpolated Surfaces using GAM on September 1, 2010",
+          par.settings = list(axis.text = list(font = 2, cex = 1.3),layout=layout_m,
+                              par.main.text=list(font=2,cex=2),strip.background=list(col="white")),par.strip.text=list(font=2,cex=1.5),
+          strip=strip.custom(factor.levels=names_layers),
+          xlab=list(label="Spatial lag neighbor", cex=2,font=2),
+          ylab=list(label="Moran's I", cex=2, font=2))
+print(p)
+
+dev.off()
+
+
+### generate filter for Moran's I function in raster package
+autocor_filter_fun <-function(no_lag=1,f_type="queen"){
+  if(f_type=="queen"){
+    no_rows <- 2*no_lag +1
+    border_row <-rep(1,no_rows)
+    other_row <- c(1,rep(0,no_rows-2),1)
+    other_rows <- rep(other_row,no_rows-2)
+    mat_data<- c(border_row,other_rows,border_row)
+    autocor_filter<-matrix(mat_data,nrow=no_rows)
+  }
+  #if(f_type=="rook){} #add later
+  return(autocor_filter)
+}
+
+
+#MODIFY: calculate for multiple dates and create averages...
+#Now run Moran's I for raster image given a list of  filters for different lags and raster stack
+moran_multiple_fun<-function(i,list_param){
+  #Parameters:
+  #list_filters: list of filters with different lags in the image
+  #r_stack: stack of raster image, only the selected layer is used...
+  list_filters <-list_param$list_filters
+  r <- subset(list_param$r_stack,i)
+  moran_list <- lapply(list_filters,FUN=Moran,x=r)
+  moran_v <-as.data.frame(unlist(moran_list))
+  names(moran_v)<-names(r)
+  return(moran_v)
+}
+
+local_moran_multiple_fun<-function(i,list_param){
+  #Parameters:
+  #list_filters: list of filters with different lags in the image
+  #r_stack: stack of raster image, only the selected layer is used...
+  list_filters <-list_param$list_filters
+  r <- subset(list_param$r_stack,i)
+  moran_list <- lapply(list_filters,FUN=MoranLocal(r),x=r)
+  #moran_v <-as.data.frame(unlist(moran_list))
+  #names(moran_v)<-names(r)
+  return(moran_list)
+}
+
+#Extract moran's I profile from list of images...the list may contain sublist!!! e.g. for diffeferent
+#methods in interpolation
+calculate_moranI_profile <- function(lf,nb_lag){
+  list_filters<-lapply(1:nb_lag,FUN=autocor_filter_fun,f_type="queen") #generate lag 10 filters
+  #moran_list <- lapply(list_filters,FUN=Moran,x=r)
+  list_moran_df <- vector("list",length=length(lf))
+  for (j in 1:length(lf)){
+    r_stack <- stack(lf[[j]])
+    list_param_moran <- list(list_filters=list_filters,r_stack=r_stack) #prepare parameters list for function
+    #moran_r <-moran_multiple_fun(1,list_param=list_param_moran)
+    nlayers(r_stack) 
+    moran_I_df <-mclapply(1:nlayers(r_stack), list_param=list_param_moran, FUN=moran_multiple_fun,mc.preschedule=FALSE,mc.cores = 10) #This is the end bracket from mclapply(...) statement
+    
+    moran_df <- do.call(cbind,moran_I_df) #bind Moran's I value 10*nlayers data.frame
+    moran_df$lag <-1:nrow(moran_df)
+    
+    list_moran_df[[j]] <- moran_df
+  }
+  names(list_moran_df) <- names(lf)
+  return(list_moran_df)
+}
+
+
 
 ######################### END OF SCRIPT ##############################
 
