@@ -34,6 +34,7 @@ library(rgeos)                               # Geometric, topologic library of f
 library(gridExtra)                           # Combining lattice plots
 library(colorRamps)                          # Palette/color ramps for symbology
 library(ggplot2)                             # plotting functionality
+library(sf)
 
 ###### Functions used in this script and sourced from other files
 
@@ -177,8 +178,6 @@ write.table(raster_df,"raster_subdataset.txt",sep=",")
 #r <- readGDAL(raster_subset_layer) #read specific dataset in hdf file and make SpatialGridDataFrame
 #r  <- brick(r) #convert to raser object
 
-
-
 lf<- mixedsort(list.files(pattern="*.nc4"))
 
 #lf[2]
@@ -259,17 +258,46 @@ writeRaster(r,
 lf_gimms <- mixedsort(list.files(pattern=file_format,path="."))
 
 
-
 r <- raster(lf_gimms[1])
+
+##### Generate a grid/tile for processing:
+## Must transformed to a function later on.
+
+# for the time being generate a no-overlapping grid tiling and crop
+extent_val<- extent(r)
+bbox_val <- st_bbox(r)
+test_sp <- as(extent_val, 'SpatialPolygons')
+outline_sf <-as(test_sp,"sf")
+
+#Can buffer?
+
+#test_grid <- st_make_grid(outline_sf, n=18)
+test_grid <- st_make_grid(outline_sf, n=9)
+
+plot(r)
+plot(test_grid,add=T)
+plot(test_grid[56],add=T,col="red")
+tile_grid_selected <- as(test_grid[56],"Spatial")
+r_tile <- crop(r,tile_grid_selected)
 
 #generate filters for 10 lags: quick solution
 
 list_filters<-lapply(1:10,FUN=autocor_filter_fun,f_type="queen") #generate 10 filters
 #moran_list <- lapply(list_filters,FUN=Moran,x=r)
 
+r_stack <- r_tile
 list_param_moran <- list(list_filters=list_filters,r_stack=r_stack)
 #moran_r <-moran_multiple_fun(1,list_param=list_param_moran)
 nlayers(r_stack) 
+
+debug(local_moran_multiple_fun)
+r_test <- local_moran_multiple_fun(1,list_param=list_param_moran)
+  
+local_moran_I_list <-mclapply(1:nlayers(r_stack), list_param=list_param_moran, 
+                      FUN=local_moran_multiple_fun,mc.preschedule=FALSE,
+                      mc.cores = 1) #This is the end bracket from mclapply(...) statement
+
+
 moran_I_df <-mclapply(1:nlayers(r_stack), list_param=list_param_moran, 
                       FUN=moran_multiple_fun,mc.preschedule=FALSE,
                       mc.cores = 10) #This is the end bracket from mclapply(...) statement
@@ -333,7 +361,11 @@ local_moran_multiple_fun<-function(i,list_param){
   #r_stack: stack of raster image, only the selected layer is used...
   list_filters <-list_param$list_filters
   r <- subset(list_param$r_stack,i)
-  moran_list <- lapply(list_filters,FUN=MoranLocal(r),x=r)
+  moran_list <- MoranLocal(r,list_filters[[1]])
+  
+  moran_list <- lapply(1:length(list_filters),FUN=function(i,x){MoranLocal(x,w=list_filters[[i]])},x=r)
+  r_local_moran <- stack(moran_list)
+  
   #moran_v <-as.data.frame(unlist(moran_list))
   #names(moran_v)<-names(r)
   return(moran_list)
