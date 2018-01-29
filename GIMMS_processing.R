@@ -38,33 +38,13 @@ library(sf)
 
 ###### Functions used in this script and sourced from other files
 
-create_dir_fun <- function(outDir,out_suffix=NULL){
-  #if out_suffix is not null then append out_suffix string
-  if(!is.null(out_suffix)){
-    out_name <- paste("output_",out_suffix,sep="")
-    outDir <- file.path(outDir,out_name)
-  }
-  #create if does not exists
-  if(!file.exists(outDir)){
-    dir.create(outDir)
-  }
-  return(outDir)
-}
-
-#Used to load RData object saved within the functions produced.
-load_obj <- function(f){
-  env <- new.env()
-  nm <- load(f, env)[1]
-  env[[nm]]
-}
-
 ###### Functions used in this script
 
 #Benoit setup
 script_path <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
 
-#raster_processing_functions <- "raster_processing_functions_12142017.R" #Functions used to mosaic predicted tiles
-#source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
+raster_processing_functions <- "GIMMS_processing_functions_01292017b.R" #Functions used to mosaic predicted tiles
+source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 
 ############################################################################
 #####  Parameters and argument set up ###########
@@ -78,14 +58,14 @@ out_dir <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/outputs"
 #hdf_file <-"test.hdf"
 
 #NA_flag <- -999999
-NA_flag_vall <- NULL
+NA_flag_val <- NULL
 
 file_format <- ".tif"
 scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD BE 10,000 AT LEAST
 #ARGS 7
 create_out_dir_param=TRUE #create a new ouput dir if TRUE
 #ARGS 8
-out_suffix <-"GIMMS_processing_01242018" #output suffix for the files and ouptut folder #param 12
+out_suffix <-"GIMMS_processing_01292018" #output suffix for the files and ouptut folder #param 12
 num_cores <- 2 # number of cores
 
 ################# START SCRIPT ###############################
@@ -120,7 +100,7 @@ if(create_out_dir_param==TRUE){
 
 ## Download data here:
 #https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/
-lf <- list.files(dir="https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/")
+#lf <- list.files(dir="https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/")
 
 lf_name <- download.file("https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/00FILE-LIST.txt",
                          destfile = "00FILE-LIST.txt")
@@ -189,8 +169,8 @@ raster_file <- lf[i]
 r <- brick(raster_file,"ndvi")
 
 if(is.null(NA_flag_val)){
-  NA_flag_val <- NAvalue(r)
   
+  NA_flag_val <- NAvalue(r)
   
 }
 
@@ -203,7 +183,6 @@ if(is.null(NA_flag_val)){
 #modis_subset_layer_Day <- paste("HDF4_EOS:EOS_GRID:",hdf_file,subdataset,sep="")
 
 #r <- readGDAL(modis_subset_layer_Day) #read specific dataset in hdf file and make SpatialGridDataFrame
-
 
 plot(r,y=1,main="NDVI ~8km",zlim=c(-10000,10000))
 r #print propind the NA flag value
@@ -257,14 +236,13 @@ writeRaster(r,
 
 lf_gimms <- mixedsort(list.files(pattern=file_format,path="."))
 
-
 r <- raster(lf_gimms[1])
 
 ##### Generate a grid/tile for processing:
 ## Must transformed to a function later on.
 
 # for the time being generate a no-overlapping grid tiling and crop
-extent_val<- extent(r)
+extent_val <- extent(r)
 bbox_val <- st_bbox(r)
 test_sp <- as(extent_val, 'SpatialPolygons')
 outline_sf <-as(test_sp,"sf")
@@ -279,14 +257,20 @@ plot(test_grid,add=T)
 plot(test_grid[56],add=T,col="red")
 tile_grid_selected <- as(test_grid[56],"Spatial")
 r_tile <- crop(r,tile_grid_selected)
-
+  
 #generate filters for 10 lags: quick solution
 
 list_filters<-lapply(1:10,FUN=autocor_filter_fun,f_type="queen") #generate 10 filters
 #moran_list <- lapply(list_filters,FUN=Moran,x=r)
 
 r_stack <- r_tile
-list_param_moran <- list(list_filters=list_filters,r_stack=r_stack)
+
+##
+list_param_moran <- list(list_filters=list_filters,
+                         r_stack=r_stack,
+                         out_suffix=NULL,
+                         out_dir=NULL)
+
 #moran_r <-moran_multiple_fun(1,list_param=list_param_moran)
 nlayers(r_stack) 
 
