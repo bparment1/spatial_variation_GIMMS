@@ -88,19 +88,53 @@ moran_multiple_fun<-function(i,list_param){
 }
 
 local_moran_multiple_fun<-function(i,list_param){
-  #Parameters:
-  #list_filters: list of filters with different lags in the image
-  #r_stack: stack of raster image, only the selected layer is used...
+  #
+  #INPUTS:
+  #1) list_filters: list of filters with different lags in the image
+  #2) r_stack: stack of raster image, only the selected layer is used...
+  #3) out_suffix: if NULL default, no suffix added.
+  #4) out_dir: if NULL default, use current dir
+  #OUTPUTS:
+  #
+  
+  ###### Begin #######
+  
+  if(is.null(out_suffix)){
+    out_suffix <- ""
+  }
+  if(is.null(out_dir)){
+    out_dir <- "."
+  }
+  
+  ### Read in filters used to computer Moran's I
+  
   list_filters <-list_param$list_filters
+  
   r <- subset(list_param$r_stack,i)
-  moran_list <- MoranLocal(r,list_filters[[1]])
+  #moran_list <- MoranLocal(r,list_filters[[1]])
   
   moran_list <- lapply(1:length(list_filters),FUN=function(i,x){MoranLocal(x,w=list_filters[[i]])},x=r)
   r_local_moran <- stack(moran_list)
-  plot(r_local_moran,y=1,main="lag 1",col=matlab.like(255))
   
+  names(r_local_moran) <- paste0("lag_",1:length(list_filters))
+  
+  plot(r_local_moran,y=1,main="lag 1",col=matlab.like(255))
+  #plot(r_local_moran,y=5,main="lag 5",col=matlab.like(255))
+  #title("lag 1")
   #moran_v <-as.data.frame(unlist(moran_list))
   #names(moran_v)<-names(r)
+  raster_name <- paste0(names(r),out_suffix,file_format)
+  
+  writeRaster(r_local_moran,
+              filename=raster_name),
+              bylayer=T,suffix=paste(names(r),"_",out_suffix,sep=""),
+              overwrite=TRUE,
+              NAflag=NA_flag_val,
+              datatype=data_type_str,
+              options=c("COMPRESS=LZW"))
+  
+  #### Prepare return object
+  
   return(moran_list)
 }
 
