@@ -3,14 +3,14 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 01/26/2018
+## DATE MODIFIED: 01/29/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
 ## ISSUE: 
 ## TO DO:
 ##
-## COMMIT: 
+## COMMIT: Splitting functions and main scripts
 ##
 ## Links to investigate:
 
@@ -247,7 +247,7 @@ writeRaster(r,
             datatype=data_type_str,
             options=c("COMPRESS=LZW"))
 
-                      #### Next steps to consider:
+#### Next steps to consider:
 ## Use the name from MODIS file because it contains information on tile location, date and product type
 ## Use QC index to screen for low value pixels
 
@@ -292,6 +292,7 @@ nlayers(r_stack)
 
 debug(local_moran_multiple_fun)
 r_test <- local_moran_multiple_fun(1,list_param=list_param_moran)
+
   
 local_moran_I_list <-mclapply(1:nlayers(r_stack), list_param=list_param_moran, 
                       FUN=local_moran_multiple_fun,mc.preschedule=FALSE,
@@ -324,76 +325,6 @@ p<-xyplot(data ~ lag | which, dd,type="b",main="Spatial content in interpolated 
 print(p)
 
 dev.off()
-
-
-### generate filter for Moran's I function in raster package
-autocor_filter_fun <-function(no_lag=1,f_type="queen"){
-  if(f_type=="queen"){
-    no_rows <- 2*no_lag +1
-    border_row <-rep(1,no_rows)
-    other_row <- c(1,rep(0,no_rows-2),1)
-    other_rows <- rep(other_row,no_rows-2)
-    mat_data<- c(border_row,other_rows,border_row)
-    autocor_filter<-matrix(mat_data,nrow=no_rows)
-  }
-  #if(f_type=="rook){} #add later
-  return(autocor_filter)
-}
-
-
-#MODIFY: calculate for multiple dates and create averages...
-#Now run Moran's I for raster image given a list of  filters for different lags and raster stack
-moran_multiple_fun<-function(i,list_param){
-  #Parameters:
-  #list_filters: list of filters with different lags in the image
-  #r_stack: stack of raster image, only the selected layer is used...
-  list_filters <-list_param$list_filters
-  r <- subset(list_param$r_stack,i)
-  moran_list <- lapply(list_filters,FUN=Moran,x=r)
-  moran_v <-as.data.frame(unlist(moran_list))
-  names(moran_v)<-names(r)
-  return(moran_v)
-}
-
-local_moran_multiple_fun<-function(i,list_param){
-  #Parameters:
-  #list_filters: list of filters with different lags in the image
-  #r_stack: stack of raster image, only the selected layer is used...
-  list_filters <-list_param$list_filters
-  r <- subset(list_param$r_stack,i)
-  moran_list <- MoranLocal(r,list_filters[[1]])
-  
-  moran_list <- lapply(1:length(list_filters),FUN=function(i,x){MoranLocal(x,w=list_filters[[i]])},x=r)
-  r_local_moran <- stack(moran_list)
-  
-  #moran_v <-as.data.frame(unlist(moran_list))
-  #names(moran_v)<-names(r)
-  return(moran_list)
-}
-
-#Extract moran's I profile from list of images...the list may contain sublist!!! e.g. for diffeferent
-#methods in interpolation
-calculate_moranI_profile <- function(lf,nb_lag){
-  list_filters<-lapply(1:nb_lag,FUN=autocor_filter_fun,f_type="queen") #generate lag 10 filters
-  #moran_list <- lapply(list_filters,FUN=Moran,x=r)
-  list_moran_df <- vector("list",length=length(lf))
-  for (j in 1:length(lf)){
-    r_stack <- stack(lf[[j]])
-    list_param_moran <- list(list_filters=list_filters,r_stack=r_stack) #prepare parameters list for function
-    #moran_r <-moran_multiple_fun(1,list_param=list_param_moran)
-    nlayers(r_stack) 
-    moran_I_df <-mclapply(1:nlayers(r_stack), list_param=list_param_moran, FUN=moran_multiple_fun,mc.preschedule=FALSE,mc.cores = 10) #This is the end bracket from mclapply(...) statement
-    
-    moran_df <- do.call(cbind,moran_I_df) #bind Moran's I value 10*nlayers data.frame
-    moran_df$lag <-1:nrow(moran_df)
-    
-    list_moran_df[[j]] <- moran_df
-  }
-  names(list_moran_df) <- names(lf)
-  return(list_moran_df)
-}
-
-
 
 ######################### END OF SCRIPT ##############################
 
