@@ -3,7 +3,7 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 01/29/2018
+## DATE MODIFIED: 01/30/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -13,6 +13,7 @@
 ## COMMIT: Splitting functions and main scripts
 ##
 ## Links to investigate:
+#https://cran.r-project.org/web/packages/gstat/vignettes/st.pdf
 
 ###################################################
 #
@@ -20,6 +21,7 @@
 ###### Library used
 
 library(gtools)                              # loading some useful tools 
+
 library(sp)                                  # Spatial pacakge with class definition by Bivand et al.
 library(spdep)                               # Spatial pacakge with methods and spatial stat. by Bivand et al.
 library(raster)                              # raster functions and spatial utilities
@@ -168,6 +170,20 @@ i <- 2
 raster_file <- lf[i]
 r <- brick(raster_file,"ndvi")
 
+##Assign new names for r?
+names_layers <- names(r)
+names_layers <- gsub("X","m_",names_layers)
+
+#now drop "." and also later right out the date in the file!!!
+
+raster_name <- paste0(paste(names_ncdf,collapse = "_"),"_",out_suffix,file_format)
+
+
+#gsub("/.","_",names_layers)
+#sub(".","_",names_layers)
+#lapply(names_layers,function(x){sub(".","_",x)})
+#names(r) <-
+
 if(is.null(NA_flag_val)){
   
   NA_flag_val <- NAvalue(r)
@@ -215,12 +231,22 @@ data_type_str <- dataType(r) #find the dataTyre
 
 names_ncdf <-as.character(unlist(strsplit(x=basename(raster_file), split="[_]")))
 names_ncdf <- names_ncdf[-length(names_ncdf)]
+names_ncdf <- names_ncdf[-length(names_ncdf)]
+strsplit(names_ncdf,split="[.]")
 
-raster_name <- paste0(paste(names_ncdf,collapse = "_"),file_format)
 
+#raster_name <- 
+raster_name <- paste0(paste(names_ncdf,collapse = "_"),"_",out_suffix,file_format)
+
+if(file_format==".tif"){
+  format_raster="GTiff"
+}
 writeRaster(r,
-            filename=file.path(out_dir,paste(raster_name,file_format,sep="")),
-            bylayer=T,suffix=paste(names(r),"_",out_suffix,sep=""),
+            filename=file.path(out_dir,raster_name,sep=""),
+            bylayer=T,
+            #suffix=paste(names(r),"_",out_suffix,sep=""),
+            format=format_raster,
+            suffix=paste(names(r)),
             overwrite=TRUE,
             NAflag=NA_flag_val,
             datatype=data_type_str,
@@ -273,6 +299,8 @@ list_param_moran <- list(list_filters=list_filters,
 
 #moran_r <-moran_multiple_fun(1,list_param=list_param_moran)
 nlayers(r_stack) 
+
+strsplit(names(r),split="[.]")
 
 debug(local_moran_multiple_fun)
 r_test <- local_moran_multiple_fun(1,list_param=list_param_moran)
