@@ -126,8 +126,10 @@ local_moran_multiple_fun<-function(i,list_param){
   raster_name <- paste0(names(r),out_suffix,file_format)
   
   writeRaster(r_local_moran,
-              filename=raster_name),
-              bylayer=T,suffix=paste(names(r),"_",out_suffix,sep=""),
+              filename=raster_name,
+              #bylayer=T,suffix=paste(names(r),"_",out_suffix,sep=""),
+              bylayer=T,
+              suffix=names(r_local_moran), 
               overwrite=TRUE,
               NAflag=NA_flag_val,
               datatype=data_type_str,
