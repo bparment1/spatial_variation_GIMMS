@@ -58,6 +58,112 @@ load_obj <- function(f){
   env[[nm]]
 }
 
+modis_product_download <- function(GIMMS_product,start_date,end_date,out_dir,out_suffix)  ##Functions used in the script
+  
+  extractFolders=function(urlString) {
+    htmlString=getURL(urlString)
+    ret=gsub("]", "", str_replace_all(str_extract_all(htmlString, paste('DIR',".([^]]+).", '/\">',sep=""))[[1]], "[a-zA-Z\"= <>/]", ""))
+    return(ret[which(nchar(ret)>0)])
+  }
+  
+  #list_folders_files[[i]] <- extractFiles(url_folders_str[i], list_tiles)[file_format]
+  extractFiles=function(urlString, list_tiles_str) {
+    #Slight modifications by Benoit
+    #list_tiles: modis tiles as character vectors eg c("h10v06","h09v07")
+    #urlString: character vector with url folder to specific dates for product
+    
+    # get filename strings
+    htmlString=getURL(urlString)
+    #htmlString=getURL(urlString[2])
+    allVec=gsub('\">', '', gsub('<a href=\"', "", str_extract_all(htmlString, paste('<a href=\"',"([^]]+)", '\">',sep=""))[[1]]))
+    #allVec: this contains list of all files! need to select the correct tiles...
+    #ret=c()
+    #for (currSel in list_tiles_str) {
+    #  ret=c(ret, grep(currSel, allVec, value=TRUE))
+    #}
+    #list_tiles_str <- c("h10v06","h11v07")
+    ret <- lapply(list_tiles_str,function(x){grep(x,allVec,value=T)})
+    
+    # select specific files
+    #ret <- paste(urlString,ret,sep="") #append the url of folder
+    ret <-file.path(urlString,unlist(ret))
+    jpg=sapply(ret, FUN=endswith, char=".jpg")
+    xml=sapply(ret, FUN=endswith, char=".xml")
+    hdf=sapply(ret, FUN=endswith, char=".hdf")
+    
+    retList=list(jpg=ret[which(jpg)], xml=ret[which(xml)], hdf=ret[which(hdf)])
+    return(retList)
+  }
+  
+  endswith=function(x, char) {
+    currSub = substr(x, as.numeric(nchar(x)-nchar(char))+1,nchar(x))
+    if (currSub==char) {return(TRUE)}
+    return(FALSE)
+  }
+  
+  ########## BEGIN SCRIPT #######
+  
+  #step 1: parse input elements
+  
+  st <- as.Date(start_date,format="%Y.%m.%d") #start date
+  en <- as.Date(end_date,format="%Y.%m.%d") #end date
+  ll <- seq.Date(st, en, by="1 day") #sequence of dates
+  dates_queried <- format(ll,"%Y.%m.%d") #formatting queried dates
+  
+  date_param <- "2002.01.01;2012.12.31;8" #start date, end date, time_step
+  
+  list_folder_dates <- intersect(as.character(dates_queried), as.character(dates_available)) #list of remote folders to access
+  
+  #This is where it can be changed for other product
+  #url_product <-paste("https://e4ftl01.cr.usgs.gov/MOLT/",MODIS_product,"/",sep="") #URL is a constant...
+  #url_product <- file.path("http://e4ftl01.cr.usgs.gov/MOLT/",MODIS_product)
+  #debug(extractFolders)
+
+  #dates_available <- extractFolders(url_product)  #Get the list of available driectory dates for the product, from 2000 to now
+  
+  #list_folder_dates <- intersect(as.character(dates_queried), as.character(dates_available)) #list of remote folders to access
+  #list_folder_dates <-setdiff(as.character(dates_available), as.character(dates_queried))
+  
+  #step 2: list content of specific day folder to obtain specific file...  #parse by tile name!!!
+  
+  ## Information: https://nex.nasa.gov/nex/projects/1349/wiki/general_data_description_and_access/
+  
+  ## Download data here:
+  #https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/
+  #lf <- list.files(dir="https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/")
+  
+  lf_name <- download.file("https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/00FILE-LIST.txt",
+                           destfile = "00FILE-LIST.txt")
+  
+  lf_df <- read.table("00FILE-LIST.txt",stringsAsFactors = F)
+  
+  ## Make this a function later on!!!
+  
+  nf <- 3 #number of files to download
+  list_raster_file <- vector("list",length=nf)
+  for(i in 1:nf){
+    raster_file <- basename(lf_df[i,1]) #this is the outfile
+    
+    file1 <- download.file(lf_df[i,1],raster_file)
+    #https://ecocast.arc.nasa.gov/data/pub/gimms/
+    
+    list_raster_file[[i]] <- raster_file
+  }
+  
+
+  #Prepare return object: list of files downloaded with http and list downloaded of files in tiles directories
+  
+  list_files_by_tiles <-mapply(1:length(out_dir_tiles),
+                               FUN=function(i,x){list.files(path=x[[i]],pattern="*.hdf$",full.names=T)},MoreArgs=(list(x=out_dir_tiles))) #Use mapply to pass multiple arguments
+  #list_files_by_tiles <-mapply(1:length(out_dir_tiles),FUN=list.files,MoreArgs=list(pattern="*.hdf$",path=out_dir_tiles,full.names=T)) #Use mapply to pass multiple arguments
+  
+  colnames(list_files_by_tiles) <- list_tiles #note that the output of mapply is a matrix
+  download_modis_obj <- list(list_files_tiles,list_files_by_tiles)
+  names(download_modis_obj) <- c("downloaded_files","list_files_by_tiles")
+  return(download_modis_obj)
+}
+
+
 ### generate filter for Moran's I function in raster package
 autocor_filter_fun <-function(no_lag=1,f_type="queen"){
   if(f_type=="queen"){
@@ -127,9 +233,8 @@ local_moran_multiple_fun<-function(i,list_param){
   
   writeRaster(r_local_moran,
               filename=raster_name,
-              #bylayer=T,suffix=paste(names(r),"_",out_suffix,sep=""),
               bylayer=T,
-              suffix=names(r_local_moran), 
+              suffix=paste(names(r_local_moran),"_",out_suffix,sep=""),
               overwrite=TRUE,
               NAflag=NA_flag_val,
               datatype=data_type_str,
