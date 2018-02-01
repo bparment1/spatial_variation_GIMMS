@@ -3,7 +3,7 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 02/01/2018
+## DATE MODIFIED: 02/02/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -120,16 +120,20 @@ lf_df <- read.table("00FILE-LIST.txt",stringsAsFactors = F)
 
 ## Make this a function later on!!!
 
-nf <- 3 #number of files to download
-list_raster_file <- vector("list",length=nf)
-for(i in 1:nf){
-  raster_file <- basename(lf_df[i,1]) #this is the outfile
+date_param <- "2002.01.01;2012.12.31;8" #start date, end date, time_step
+
+start_date <- date_param[1]
+end_date <- date_param[2]
+
+GIMMS_product <- "3g.v1"
+
+debug(modis_product_download)
+modis_product_download(GIMMS_product,
+                       start_date,
+                       end_date,
+                       out_dir,
+                       out_suffix)  ##Functions used in the script
   
-  file1 <- download.file(lf_df[i,1],raster_file)
-  #https://ecocast.arc.nasa.gov/data/pub/gimms/
-  
-  list_raster_file[[i]] <- raster_file
-}
 
 ##### Next import in Tif format the NCDF
 
@@ -321,6 +325,22 @@ plot(test_grid[56],add=T,col="red")
 tile_grid_selected <- as(test_grid[56],"Spatial")
 r_tile <- crop(r,tile_grid_selected)
   
+### Create function for SLURM job:
+
+
+#ARGS 11
+infile_list_tiles <- "list_tiles.txt"
+
+#ARGS 12: 
+#TILE INDEX this is from the array
+# Get the the array id value from the environment variable passed from sbatch
+
+SLURM_ARRAY_TASK_ID <- Sys.getenv('SLURM_ARRAY_TASK_ID')
+tile_index <- Sys.getenv("SLURM_ARRAY_TASK_ID") #this is should be an integer from 1:n, n is the number of tiles
+#slurm_arrayid <- Sys.getenv('SLURM_ARRAYID') #work with #SARRAY option in SLURM
+#tile_index <- as.numeric(slurm_arrayid) # coerce the value to an integer
+#tile_index <- 1  #for testing
+
 #generate filters for 10 lags: quick solution
 
 list_filters<-lapply(1:10,FUN=autocor_filter_fun,f_type="queen") #generate 10 filters
