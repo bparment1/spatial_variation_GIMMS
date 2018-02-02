@@ -3,7 +3,7 @@
 ##
 ##
 ## DATE CREATED: 01/29/2018
-## DATE MODIFIED: 01/29/2018
+## DATE MODIFIED: 02/02/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -58,48 +58,48 @@ load_obj <- function(f){
   env[[nm]]
 }
 
-modis_product_download <- function(GIMMS_product,start_date,end_date,out_dir,out_suffix)  ##Functions used in the script
+extractFolders=function(urlString) {
+  htmlString=getURL(urlString)
+  ret=gsub("]", "", str_replace_all(str_extract_all(htmlString, paste('DIR',".([^]]+).", '/\">',sep=""))[[1]], "[a-zA-Z\"= <>/]", ""))
+  return(ret[which(nchar(ret)>0)])
+}
+
+#list_folders_files[[i]] <- extractFiles(url_folders_str[i], list_tiles)[file_format]
+extractFiles=function(urlString, list_tiles_str) {
+  #Slight modifications by Benoit
+  #list_tiles: modis tiles as character vectors eg c("h10v06","h09v07")
+  #urlString: character vector with url folder to specific dates for product
   
-  extractFolders=function(urlString) {
-    htmlString=getURL(urlString)
-    ret=gsub("]", "", str_replace_all(str_extract_all(htmlString, paste('DIR',".([^]]+).", '/\">',sep=""))[[1]], "[a-zA-Z\"= <>/]", ""))
-    return(ret[which(nchar(ret)>0)])
-  }
+  # get filename strings
+  htmlString=getURL(urlString)
+  #htmlString=getURL(urlString[2])
+  allVec=gsub('\">', '', gsub('<a href=\"', "", str_extract_all(htmlString, paste('<a href=\"',"([^]]+)", '\">',sep=""))[[1]]))
+  #allVec: this contains list of all files! need to select the correct tiles...
+  #ret=c()
+  #for (currSel in list_tiles_str) {
+  #  ret=c(ret, grep(currSel, allVec, value=TRUE))
+  #}
+  #list_tiles_str <- c("h10v06","h11v07")
+  ret <- lapply(list_tiles_str,function(x){grep(x,allVec,value=T)})
   
-  #list_folders_files[[i]] <- extractFiles(url_folders_str[i], list_tiles)[file_format]
-  extractFiles=function(urlString, list_tiles_str) {
-    #Slight modifications by Benoit
-    #list_tiles: modis tiles as character vectors eg c("h10v06","h09v07")
-    #urlString: character vector with url folder to specific dates for product
-    
-    # get filename strings
-    htmlString=getURL(urlString)
-    #htmlString=getURL(urlString[2])
-    allVec=gsub('\">', '', gsub('<a href=\"', "", str_extract_all(htmlString, paste('<a href=\"',"([^]]+)", '\">',sep=""))[[1]]))
-    #allVec: this contains list of all files! need to select the correct tiles...
-    #ret=c()
-    #for (currSel in list_tiles_str) {
-    #  ret=c(ret, grep(currSel, allVec, value=TRUE))
-    #}
-    #list_tiles_str <- c("h10v06","h11v07")
-    ret <- lapply(list_tiles_str,function(x){grep(x,allVec,value=T)})
-    
-    # select specific files
-    #ret <- paste(urlString,ret,sep="") #append the url of folder
-    ret <-file.path(urlString,unlist(ret))
-    jpg=sapply(ret, FUN=endswith, char=".jpg")
-    xml=sapply(ret, FUN=endswith, char=".xml")
-    hdf=sapply(ret, FUN=endswith, char=".hdf")
-    
-    retList=list(jpg=ret[which(jpg)], xml=ret[which(xml)], hdf=ret[which(hdf)])
-    return(retList)
-  }
+  # select specific files
+  #ret <- paste(urlString,ret,sep="") #append the url of folder
+  ret <-file.path(urlString,unlist(ret))
+  jpg=sapply(ret, FUN=endswith, char=".jpg")
+  xml=sapply(ret, FUN=endswith, char=".xml")
+  hdf=sapply(ret, FUN=endswith, char=".hdf")
   
-  endswith=function(x, char) {
-    currSub = substr(x, as.numeric(nchar(x)-nchar(char))+1,nchar(x))
-    if (currSub==char) {return(TRUE)}
-    return(FALSE)
-  }
+  retList=list(jpg=ret[which(jpg)], xml=ret[which(xml)], hdf=ret[which(hdf)])
+  return(retList)
+}
+
+endswith=function(x, char) {
+  currSub = substr(x, as.numeric(nchar(x)-nchar(char))+1,nchar(x))
+  if (currSub==char) {return(TRUE)}
+  return(FALSE)
+}
+
+GIMMS_product_download <- function(GIMMS_product,start_date,end_date,out_dir,out_suffix){  
   
   ########## BEGIN SCRIPT #######
   
@@ -110,7 +110,32 @@ modis_product_download <- function(GIMMS_product,start_date,end_date,out_dir,out
   ll <- seq.Date(st, en, by="1 day") #sequence of dates
   dates_queried <- format(ll,"%Y.%m.%d") #formatting queried dates
   
-  date_param <- "2002.01.01;2012.12.31;8" #start date, end date, time_step
+  year(date_queried)
+  raster_file <- lf[i]
+  r <- brick(raster_file,"ndvi")
+  
+  raster_name <- sub(extension(raster_file),"",raster_file)
+  list_raster_name <- unlist(strsplit(x=basename(raster_name), split="[_]"))
+  year_val <- list_raster_name[[length(list_raster_name)-1]]
+  month_range <- list_raster_name[[length(list_raster_name)]]
+  month_range <- c(substr(month_range, 1, 2),substr(month_range, 3, 4))
+  #month_range <- as.numeric(month_range)
+  
+  #start_date <- paste(year_val,month_range[1],"01",sep=".")
+  #end_date <- paste(year_val,month_range[2],"30",sep=".")
+  
+  #st <- as.Date(start_date,format="%Y.%m.%d") #start date
+  #en <- as.Date(end_date,format="%Y.%m.%d") #end date
+  #ll <- seq.Date(st, en, by="15 day") #sequence of dates
+  
+  month_vals <- month_range[1]:month_range[2]
+  month_vals <- sprintf("%02d", month_vals)
+  
+  list_dates <-unlist(lapply(month_vals,function(x){paste0(x,".",c("01","15"))}))
+  #dates_queried <- format(ll,"%Y.%m.%d") #formatting queried dates
+  dates_val <- format(ll[-13],"%Y_%m_%d") #formatting queried dates
+  
+  #date_param <- "2002.01.01;2012.12.31;8" #start date, end date, time_step
   
   list_folder_dates <- intersect(as.character(dates_queried), as.character(dates_available)) #list of remote folders to access
   
