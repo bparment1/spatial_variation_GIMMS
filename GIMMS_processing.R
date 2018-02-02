@@ -49,12 +49,10 @@ library(sf)
 
 ###### Functions used in this script and sourced from other files
 
-###### Functions used in this script
-
 #Benoit setup
 script_path <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
 
-raster_processing_functions <- "GIMMS_processing_functions_02012018.R" #Functions used to mosaic predicted tiles
+raster_processing_functions <- "GIMMS_processing_functions_02022018b.R" #Functions used to mosaic predicted tiles
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 
 ############################################################################
@@ -127,8 +125,8 @@ end_date <- date_param[2]
 
 GIMMS_product <- "3g.v1"
 
-debug(modis_product_download)
-modis_product_download(GIMMS_product,
+debug(gimms_product_download)
+gimms_product_download(GIMMS_product,
                        start_date,
                        end_date,
                        out_dir,
@@ -137,161 +135,6 @@ modis_product_download(GIMMS_product,
 
 ##### Next import in Tif format the NCDF
 
-GDALinfo_raster <- GDALinfo(raster_file,returnScaleOffset = F) #use GDAL info utility
-
-#hdf_file <- file.path(in_dir,hdf_file) #associate file path to input
-#GDALinfo_hdf <- GDALinfo(hdf_file,returnScaleOffset = F) #use GDAL info utility
-
-#str(GDALinfo_hdf) ## Class GDLobj
-raster_subdataset <- attributes(GDALinfo_raster)$subdsmdata
-print(raster_subdataset)
-
-### Generate a data.frame from scientific datasets
-raster_df <- (strsplit(raster_subdataset,":"))
-length(raster_subdataset)
-raster_df <- as.data.frame(do.call(rbind,raster_df),stringsAsFactors=F)
-raster_df <- data.frame(lapply(raster_df, as.character))
-
-#hdf_df %>% 
-#  mutate_all(as.character)
-
-#names(raster_df) <- c("subdataset_name","description","dir","product","var_name")
-names(raster_df) <- c("subdataset_name","dir","var_name")
-
-raster_df
-
-#Select automatically QC flag!!
-#View(hdf_df)
-
-write.table(raster_df,"raster_subdataset.txt",sep=",")
-
-#modis_subset_layer <- paste("HDF4_EOS:EOS_GRID:",
-#                                raster_file,subdataset,sep="")
-
-#raster_subset_layer <- paste0("NETCDF:","ndvi3g_geo_v1_1981_0712.nc4",":","ndvi")
-#r <- readGDAL(raster_subset_layer) #read specific dataset in hdf file and make SpatialGridDataFrame
-#r  <- brick(r) #convert to raser object
-
-lf<- mixedsort(list.files(pattern="*.nc4"))
-
-#lf[2]
-
-#### New import function can be created here...
-i <- 2
-
-raster_file <- lf[i]
-r <- brick(raster_file,"ndvi")
-
-raster_name <- sub(extension(raster_file),"",raster_file)
-list_raster_name <- unlist(strsplit(x=basename(raster_name), split="[_]"))
-year_val <- list_raster_name[[length(list_raster_name)-1]]
-month_range <- list_raster_name[[length(list_raster_name)]]
-month_range <- c(substr(month_range, 1, 2),substr(month_range, 3, 4))
-#month_range <- as.numeric(month_range)
-
-start_date <- paste(year_val,month_range[1],"01",sep=".")
-end_date <- paste(year_val,month_range[2],"30",sep=".")
-
-st <- as.Date(start_date,format="%Y.%m.%d") #start date
-en <- as.Date(end_date,format="%Y.%m.%d") #end date
-ll <- seq.Date(st, en, by="15 day") #sequence of dates
-#dates_queried <- format(ll,"%Y.%m.%d") #formatting queried dates
-dates_val <- format(ll[-13],"%Y_%m_%d") #formatting queried dates
-
-
-#generate dates for 16 days product
-#dates_val <- generate_dates_by_step(date_range[1],date_range[2],16)$dates #NDVI Katrina
-#names_ncdf <- as.character(unlist(strsplit(x=basename(raster_file), split="[_]")))
-#names_ncdf <- names_ncdf[-length(names_ncdf)]
-#names_ncdf <- names_ncdf[-length(names_ncdf)]
-#strsplit(names_ncdf,split="[.]")
-
-##Assign new names for r?
-#names_layers <- names(r)
-#names_layers <- gsub("X","m_",names_layers)
-
-#names(r)
-names(r) <- paste("NDVI",dates_val,sep="_")
-#now drop "." and also later right out the date in the file!!!
-
-raster_name <- paste0(paste(names_ncdf,collapse = "_"),"_",out_suffix,file_format)
-
-
-#gsub("/.","_",names_layers)
-#sub(".","_",names_layers)
-#lapply(names_layers,function(x){sub(".","_",x)})
-#names(r) <-
-
-if(is.null(NA_flag_val)){
-  
-  NA_flag_val <- NAvalue(r)
-  
-}
-
-#NDVI variable
-#modis_layer_str1 <- unlist(strsplit(modis_subdataset[1],"\""))[3] #Get day NDVI layer
-#QC
-#modis_layer_str2 <- unlist(strsplit(modis_subdataset[5],"\""))[3] #Get day VI QC layer
-
-#subdataset <- modis_layer_str1
-#modis_subset_layer_Day <- paste("HDF4_EOS:EOS_GRID:",hdf_file,subdataset,sep="")
-
-#r <- readGDAL(modis_subset_layer_Day) #read specific dataset in hdf file and make SpatialGridDataFrame
-
-plot(r,y=1,zlim=c(-10000,10000))
-r #print propind the NA flag value
-data_type_str <- dataType(r) #find the dataTyre
-
-# for more control, you can set dataType and/or compress the files
-#data_type_str <- "FLT4S"
-#A_flag_val <- NAvalue(r2)
-
-#This is a brick!!!! so need to write out every layer!!
-
-#raster_name <- ""
-  
-#rwriteRaster(r,
-#            file.path(out_dir,raster_name),
-#            overwrite=TRUE,
-#            NAflag=NA_flag_val,
-#            datatype=data_type_str,
-#            options=c("COMPRESS=LZW"))
-
-#writeRaster(r_stack,
-#            filename=file.path(out_dir,paste("pysal_mle",".rst",sep="")),
-#            bylayer=T,suffix=paste(names(r_stack),"_",out_suffix,sep=""),
-#            overwrite=TRUE,
-#            NAflag=NA_flag_val,
-#            datatype=data_type_str,
-#            options=c("COMPRESS=LZW"))
-
-#names_hdf<-as.character(unlist(strsplit(x=basename(hdf), split="[.]")))
-
-names_ncdf <-as.character(unlist(strsplit(x=basename(raster_file), split="[_]")))
-names_ncdf <- names_ncdf[-length(names_ncdf)]
-names_ncdf <- names_ncdf[-length(names_ncdf)]
-strsplit(names_ncdf,split="[.]")
-
-
-#raster_name <- 
-out_suffix_str <- ""
-#raster_name <- paste0(paste(names_ncdf,collapse = "_"),"_",out_suffix,file_format)
-raster_name <- paste0(paste(names_ncdf,collapse = "_"),file_format)
-
-if(file_format==".tif"){
-  format_raster="GTiff"
-}
-
-writeRaster(r,
-            filename=file.path(out_dir,raster_name,sep=""),
-            bylayer=T,
-            #suffix=paste(names(r),"_",out_suffix,sep=""),
-            format=format_raster,
-            suffix=paste(names(r)),
-            overwrite=TRUE,
-            NAflag=NA_flag_val,
-            datatype=data_type_str,
-            options=c("COMPRESS=LZW"))
 
 #### Next steps to consider:
 ## Use the name from MODIS file because it contains information on tile location, date and product type
