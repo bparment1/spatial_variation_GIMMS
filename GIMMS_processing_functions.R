@@ -3,7 +3,7 @@
 ##
 ##
 ## DATE CREATED: 01/29/2018
-## DATE MODIFIED: 02/02/2018
+## DATE MODIFIED: 02/03/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -118,6 +118,22 @@ GIMMS_product_download <- function(GIMMS_product,start_date,end_date,out_dir,out
   
   lf_df <- read.table("00FILE-LIST.txt",stringsAsFactors = F)
   
+  #class(lf_df)
+  #View(lf_df)
+  raster_file <- f
+  
+  r <- brick(raster_file,var_anem)
+  
+  extract_date_information <- function(file_name){
+    #Extracting date information from GIMMS file name
+    file_name <- sub(extension(file_name),"",file_name)
+    list_file_name <- unlist(strsplit(x=basename(file_name), split="[_]"))
+    year_val <- list_raster_name[[length(list_file_name)-1]]
+    month_range <- list_file_name[[length(list_file_name)]]
+    month_range <- c(substr(month_range, 1, 2),substr(month_range, 3, 4))
+    
+  }
+  
   ## Make this a function later on!!!
   
   nf <- 3 #number of files to download
@@ -146,7 +162,7 @@ GIMMS_product_download <- function(GIMMS_product,start_date,end_date,out_dir,out
 }
 
 
-import_gimms_nc4 <- function(f,out_dir,var_name="ndvi",out_suffix="",out_dir="."){
+import_gimms_nc4 <- function(f,var_name="ndvi",out_suffix="",out_dir="."){
   
   #var_name <- "ndvi"
   
