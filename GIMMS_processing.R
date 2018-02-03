@@ -1,9 +1,9 @@
-############### SESYNC Research Support: Hurricane Management ########## 
+############### SESYNC Research Support: GIMMS Spatial Variation ########## 
 ## Help in processing modis data for the workshop group.
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 02/02/2018
+## DATE MODIFIED: 02/03/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -52,10 +52,10 @@ library(sf)
 #Benoit setup
 script_path <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
 
-raster_processing_functions <- "GIMMS_processing_functions_02022018b.R" #Functions used to mosaic predicted tiles
+raster_processing_functions <- "GIMMS_processing_functions_02032018.R" #Functions used to mosaic predicted tiles
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 
-############################################################################
+#########cd ###################################################################
 #####  Parameters and argument set up ###########
 
 #ARGS 1
@@ -74,7 +74,7 @@ scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD
 #ARGS 7
 create_out_dir_param=TRUE #create a new ouput dir if TRUE
 #ARGS 8
-out_suffix <-"GIMMS_processing_02012018" #output suffix for the files and ouptut folder #param 12
+out_suffix <-"GIMMS_processing_02032018" #output suffix for the files and ouptut folder #param 12
 num_cores <- 2 # number of cores
 
 ################# START SCRIPT ###############################
@@ -111,22 +111,24 @@ if(create_out_dir_param==TRUE){
 #https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/
 #lf <- list.files(dir="https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/")
 
-lf_name <- download.file("https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/00FILE-LIST.txt",
-                         destfile = "00FILE-LIST.txt")
+#lf_name <- download.file("https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/00FILE-LIST.txt",
+#                         destfile = "00FILE-LIST.txt")
 
-lf_df <- read.table("00FILE-LIST.txt",stringsAsFactors = F)
+#lf_df <- read.table("00FILE-LIST.txt",stringsAsFactors = F)
 
 ## Make this a function later on!!!
 
 date_param <- "2002.01.01;2012.12.31;8" #start date, end date, time_step
+date_param <- unlist(strsplit(date_param,";"))
 
 start_date <- date_param[1]
 end_date <- date_param[2]
 
 GIMMS_product <- "3g.v1"
 
-debug(gimms_product_download)
-gimms_product_download(GIMMS_product,
+#debug(gimms_product_download)
+debug(GIMMS_product_download)
+test <- GIMMS_product_download(GIMMS_product,
                        start_date,
                        end_date,
                        out_dir,
@@ -135,7 +137,9 @@ gimms_product_download(GIMMS_product,
 
 ##### Next import in Tif format the NCDF
 
-
+import_gimms_nc4(f,out_dir,var_name="ndvi",out_suffix="",out_dir=".")
+  
+  
 #### Next steps to consider:
 ## Use the name from MODIS file because it contains information on tile location, date and product type
 ## Use QC index to screen for low value pixels
