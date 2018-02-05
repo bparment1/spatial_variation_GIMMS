@@ -3,7 +3,7 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 02/03/2018
+## DATE MODIFIED: 02/05/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -52,30 +52,39 @@ library(sf)
 #Benoit setup
 script_path <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
 
-raster_processing_functions <- "GIMMS_processing_functions_02032018.R" #Functions used to mosaic predicted tiles
+raster_processing_functions <- "GIMMS_processing_functions_02052018.R" #Functions used to mosaic predicted tiles
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 
 #########cd ###################################################################
 #####  Parameters and argument set up ###########
 
 #ARGS 1
-#Set up teamhurricane-data
 in_dir <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/data"
-
+#ARGS 2
 out_dir <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/outputs"
-
-#hdf_file <-"test.hdf"
+#ARGS 3:
 
 #NA_flag <- -999999
 NA_flag_val <- NULL
 
+#ARGS 4:
 file_format <- ".tif"
+#ARGS 5
 scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD BE 10,000 AT LEAST
-#ARGS 7
+#ARGS 6
 create_out_dir_param=TRUE #create a new ouput dir if TRUE
+#ARGS 7
+out_suffix <-"GIMMS_processing_02052018" #output suffix for the files and ouptut folder
 #ARGS 8
-out_suffix <-"GIMMS_processing_02032018" #output suffix for the files and ouptut folder #param 12
 num_cores <- 2 # number of cores
+#ARGS 9
+date_param <- "1982.01.01;1982.12.31" #start date, end date
+#ARGS 10
+GIMMS_product <- "3g.v1"
+
+#ARGS 11
+processing_steps <- list(download=TRUE,
+                         import=TRUE)
 
 ################# START SCRIPT ###############################
 
@@ -105,36 +114,29 @@ if(create_out_dir_param==TRUE){
 
 #Will be a function
 
-## Information: https://nex.nasa.gov/nex/projects/1349/wiki/general_data_description_and_access/
-
-## Download data here:
-#https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/
-#lf <- list.files(dir="https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/")
-
-#lf_name <- download.file("https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/00FILE-LIST.txt",
-#                         destfile = "00FILE-LIST.txt")
-
-#lf_df <- read.table("00FILE-LIST.txt",stringsAsFactors = F)
 
 ## Make this a function later on!!!
-
-date_param <- "2002.01.01;2012.12.31;8" #start date, end date, time_step
 date_param <- unlist(strsplit(date_param,";"))
 
 start_date <- date_param[1]
 end_date <- date_param[2]
 
-GIMMS_product <- "3g.v1"
-
-#debug(gimms_product_download)
-debug(GIMMS_product_download)
-test <- GIMMS_product_download(GIMMS_product,
-                       start_date,
-                       end_date,
-                       out_dir,
-                       out_suffix)  ##Functions used in the script
+if(processing_steps$download==TRUE){
   
-
+  
+  #debug(gimms_product_download)
+  #undebug(GIMMS_product_download)
+  
+  #raster_processing_functions <- "GIMMS_processing_functions_02052018.R" #Functions used to mosaic predicted tiles
+  #source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
+  
+  test <- GIMMS_product_download(GIMMS_product,
+                                 start_date,
+                                 end_date,
+                                 out_dir=in_dir, #store nc4 in data folder
+                                 out_suffix)  ##Functions used in the script
+}
+  
 ##### Next import in Tif format the NCDF
 
 import_gimms_nc4(f,out_dir,var_name="ndvi",out_suffix="",out_dir=".")
