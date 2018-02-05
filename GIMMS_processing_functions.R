@@ -3,7 +3,7 @@
 ##
 ##
 ## DATE CREATED: 01/29/2018
-## DATE MODIFIED: 02/03/2018
+## DATE MODIFIED: 02/05/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -99,7 +99,40 @@ endswith=function(x, char) {
   return(FALSE)
 }
 
+extract_date_information <- function(i,lf){
+  #Extracting date information from GIMMS file name
+  input_file_name <- lf[i]
+  file_name <- sub(extension(input_file_name),"",input_file_name)
+  list_file_name <- unlist(strsplit(x=basename(file_name), split="[_]"))
+  year_val <- list_file_name[[length(list_file_name)-1]]
+  month_range <- list_file_name[[length(list_file_name)]]
+  month_range <- c(substr(month_range, 1, 2),substr(month_range, 3, 4))
+  
+  date_info_df <- data.frame(file=as.character(input_file_name),
+                             year=as.character(year_val),
+                             start_month=as.character(month_range[1]),
+                             end_month=as.character(month_range[2]),
+                             stringsAsFactors = F)
+  return(date_info_df)
+}
+
+
 GIMMS_product_download <- function(GIMMS_product,start_date,end_date,out_dir,out_suffix){  
+  #This function performs the downloading of GIMMS datasets from the ecocast server.
+  #INPUTS
+  #1) GIMMS_product:
+  #2) start_date:
+  #3) end_date:
+  #4) outdir:
+  #5) out_suffix:
+  #OUTPUTS
+  #
+  #
+  
+  ## Information: https://nex.nasa.gov/nex/projects/1349/wiki/general_data_description_and_access/
+  ## Download data here:
+  #https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/
+  #lf <- list.files(dir="https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/")
   
   ########## BEGIN SCRIPT #######
   
@@ -108,8 +141,7 @@ GIMMS_product_download <- function(GIMMS_product,start_date,end_date,out_dir,out
   st <- as.Date(start_date,format="%Y.%m.%d") #start date
   en <- as.Date(end_date,format="%Y.%m.%d") #end date
   
-  year(st)
-  year(en)
+  year_range<- year(st):year(en)
   
   #date_param <- "2002.01.01;2012.12.31;8" #start date, end date, time_step
   
@@ -118,51 +150,52 @@ GIMMS_product_download <- function(GIMMS_product,start_date,end_date,out_dir,out
   
   lf_df <- read.table("00FILE-LIST.txt",stringsAsFactors = F)
   
-  #class(lf_df)
-  #View(lf_df)
-  raster_file <- f
+  #file_name <- lf_df[1,]  
+  #undebug(extract_date_information)
+  #list_date_info_df <- extract_date_information(1,lf=lf_df$V1)
   
-  r <- brick(raster_file,var_anem)
+  list_date_info_df <- lapply(1:nrow(lf_df),FUN=extract_date_information,lf=lf_df$V1)
+  date_info_df <- do.call(rbind,list_date_info_df)
+  #View(date_info_df)
   
-  extract_date_information <- function(file_name){
-    #Extracting date information from GIMMS file name
-    file_name <- sub(extension(file_name),"",file_name)
-    list_file_name <- unlist(strsplit(x=basename(file_name), split="[_]"))
-    year_val <- list_raster_name[[length(list_file_name)-1]]
-    month_range <- list_file_name[[length(list_file_name)]]
-    month_range <- c(substr(month_range, 1, 2),substr(month_range, 3, 4))
-    
-  }
+  out_filename <- "gimms_nc4_file_date_information.txt"
+  write.table(date_info_df,sep=",",file=out_filename)
   
-  ## Make this a function later on!!!
+  ## Now subset and download:
   
-  nf <- 3 #number of files to download
+  gimms_file_selected_df <- subset(date_info_df,date_info_df$year %in%year_range)
+  
+  nf <- nrow(gimms_file_selected_df) #number of files to download
   list_raster_file <- vector("list",length=nf)
+  
   for(i in 1:nf){
-    raster_file <- basename(lf_df[i,1]) #this is the outfile
-    
-    file1 <- download.file(lf_df[i,1],raster_file)
+    raster_file <- basename(as.character(gimms_file_selected_df[i,1])) #this is the outfile
+    raster_file <- file.path(out_dir,raster_file)
+    file1 <- download.file(as.character(gimms_file_selected_df[i,1]),raster_file)
     #https://ecocast.arc.nasa.gov/data/pub/gimms/
     
     list_raster_file[[i]] <- raster_file
   }
   
-
+  list_files <- list.files(path=out_dir,pattern="*.nc4")
+  
   #Prepare return object: list of files downloaded with http and list downloaded of files in tiles directories
   
-  list_files_by_tiles <-mapply(1:length(out_dir_tiles),
-                               FUN=function(i,x){list.files(path=x[[i]],pattern="*.hdf$",full.names=T)},MoreArgs=(list(x=out_dir_tiles))) #Use mapply to pass multiple arguments
+  #list_files_by_tiles <-mapply(1:length(out_dir_tiles),
+  #                             FUN=function(i,x){list.files(path=x[[i]],pattern="*.hdf$",full.names=T)},MoreArgs=(list(x=out_dir_tiles))) #Use mapply to pass multiple arguments
   #list_files_by_tiles <-mapply(1:length(out_dir_tiles),FUN=list.files,MoreArgs=list(pattern="*.hdf$",path=out_dir_tiles,full.names=T)) #Use mapply to pass multiple arguments
   
-  colnames(list_files_by_tiles) <- list_tiles #note that the output of mapply is a matrix
-  download_modis_obj <- list(list_files_tiles,list_files_by_tiles)
-  names(download_modis_obj) <- c("downloaded_files","list_files_by_tiles")
+  #colnames(list_files_by_tiles) <- list_tiles #note that the output of mapply is a matrix
+  
+  download_gimms_obj <- list(list_files,date_info_df)
+  names(download_gimms_obj) <- c("downloaded_files","date_info_df")
  
-   return(download_modis_obj)
+  return(download_gimms_obj)
 }
 
 
-import_gimms_nc4 <- function(f,var_name="ndvi",out_suffix="",out_dir="."){
+
+import_gimms_nc4 <- function(input_file,var_name="ndvi",out_suffix="",out_dir="."){
   
   #var_name <- "ndvi"
   
@@ -173,7 +206,7 @@ import_gimms_nc4 <- function(f,var_name="ndvi",out_suffix="",out_dir="."){
   
   #year(date_queried)
   #raster_file <- lf[i]
-  raster_file <- f
+  raster_file <- input_file
   
   r <- brick(raster_file,var_anem)
   
