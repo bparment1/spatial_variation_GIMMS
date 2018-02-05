@@ -177,7 +177,7 @@ GIMMS_product_download <- function(GIMMS_product,start_date,end_date,out_dir,out
     list_raster_file[[i]] <- raster_file
   }
   
-  list_files <- list.files(path=out_dir,pattern="*.nc4")
+  list_files <- list.files(path=out_dir,pattern="*.nc4",full.names=T)
   
   #Prepare return object: list of files downloaded with http and list downloaded of files in tiles directories
   
@@ -195,20 +195,15 @@ GIMMS_product_download <- function(GIMMS_product,start_date,end_date,out_dir,out
 
 
 
-import_gimms_nc4 <- function(input_file,var_name="ndvi",out_suffix="",out_dir="."){
+import_gimms_nc4 <- function(input_file,var_name="ndvi",NA_flag_val,file_format,out_suffix="",out_dir="."){
   
   #var_name <- "ndvi"
   
   #### Begin script ###
   
-  #ll <- seq.Date(st, en, by="1 day") #sequence of dates
-  #dates_queried <- format(ll,"%Y.%m.%d") #formatting queried dates
-  
-  #year(date_queried)
-  #raster_file <- lf[i]
   raster_file <- input_file
   
-  r <- brick(raster_file,var_anem)
+  r <- brick(raster_file,var_name)
   
   raster_name <- sub(extension(raster_file),"",raster_file)
   list_raster_name <- unlist(strsplit(x=basename(raster_name), split="[_]"))
@@ -227,13 +222,12 @@ import_gimms_nc4 <- function(input_file,var_name="ndvi",out_suffix="",out_dir=".
   month_vals <- month_range[1]:month_range[2]
   month_vals <- sprintf("%02d", month_vals)
   
-  list_dates <-unlist(lapply(month_vals,function(x){paste0(x,".",c("01","15"))}))
+  #list_dates <-unlist(lapply(month_vals,function(x){paste0(x,".",c("01","15"))}))
+  list_dates <-unlist(lapply(month_vals,function(x){paste0(x,"_",c("01","15"))}))
   #dates_queried <- format(ll,"%Y.%m.%d") #formatting queried dates
   #dates_val <- format(ll[-13],"%Y_%m_%d") #formatting queried dates
-  
-  
-  
-  
+  dates_val <- paste(year_val,list_dates,sep="_") #output dates
+
   GDALinfo_raster <- GDALinfo(raster_file,returnScaleOffset = F) #use GDAL info utility
   
   #hdf_file <- file.path(in_dir,hdf_file) #associate file path to input
@@ -269,32 +263,32 @@ import_gimms_nc4 <- function(input_file,var_name="ndvi",out_suffix="",out_dir=".
   #r <- readGDAL(raster_subset_layer) #read specific dataset in hdf file and make SpatialGridDataFrame
   #r  <- brick(r) #convert to raser object
   
-  lf<- mixedsort(list.files(pattern="*.nc4"))
+  #lf<- mixedsort(list.files(pattern="*.nc4"))
+  #browser()
   
   #lf[2]
   
   #### New import function can be created here...
-  i <- 2
+  #i <- 2
   
-  raster_file <- lf[i]
-  r <- brick(raster_file,"ndvi")
+  #raster_file <- lf[i]
+  #r <- brick(raster_file,"ndvi")
   
-  raster_name <- sub(extension(raster_file),"",raster_file)
-  list_raster_name <- unlist(strsplit(x=basename(raster_name), split="[_]"))
-  year_val <- list_raster_name[[length(list_raster_name)-1]]
-  month_range <- list_raster_name[[length(list_raster_name)]]
-  month_range <- c(substr(month_range, 1, 2),substr(month_range, 3, 4))
+  #raster_name <- sub(extension(raster_file),"",raster_file)
+  #list_raster_name <- unlist(strsplit(x=basename(raster_name), split="[_]"))
+  #year_val <- list_raster_name[[length(list_raster_name)-1]]
+  #month_range <- list_raster_name[[length(list_raster_name)]]
+  #month_range <- c(substr(month_range, 1, 2),substr(month_range, 3, 4))
   #month_range <- as.numeric(month_range)
   
-  start_date <- paste(year_val,month_range[1],"01",sep=".")
-  end_date <- paste(year_val,month_range[2],"30",sep=".")
+  #start_date <- paste(year_val,month_range[1],"01",sep=".")
+  #end_date <- paste(year_val,month_range[2],"30",sep=".")
   
-  st <- as.Date(start_date,format="%Y.%m.%d") #start date
-  en <- as.Date(end_date,format="%Y.%m.%d") #end date
-  ll <- seq.Date(st, en, by="15 day") #sequence of dates
+  #st <- as.Date(start_date,format="%Y.%m.%d") #start date
+  #en <- as.Date(end_date,format="%Y.%m.%d") #end date
+  #ll <- seq.Date(st, en, by="15 day") #sequence of dates
   #dates_queried <- format(ll,"%Y.%m.%d") #formatting queried dates
-  dates_val <- format(ll[-13],"%Y_%m_%d") #formatting queried dates
-  
+  #dates_val <- format(ll[-13],"%Y_%m_%d") #formatting queried dates
   
   #generate dates for 16 days product
   #dates_val <- generate_dates_by_step(date_range[1],date_range[2],16)$dates #NDVI Katrina
@@ -308,11 +302,11 @@ import_gimms_nc4 <- function(input_file,var_name="ndvi",out_suffix="",out_dir=".
   #names_layers <- gsub("X","m_",names_layers)
   
   #names(r)
+  names_layers <- paste("NDVI",dates_val,sep="_")
   names(r) <- paste("NDVI",dates_val,sep="_")
   #now drop "." and also later right out the date in the file!!!
   
-  raster_name <- paste0(paste(names_ncdf,collapse = "_"),"_",out_suffix,file_format)
-  
+  #raster_name <- paste0(paste(names_ncdf,collapse = "_"),"_",out_suffix,file_format)
   
   #gsub("/.","_",names_layers)
   #sub(".","_",names_layers)
@@ -375,9 +369,16 @@ import_gimms_nc4 <- function(input_file,var_name="ndvi",out_suffix="",out_dir=".
   #raster_name <- paste0(paste(names_ncdf,collapse = "_"),"_",out_suffix,file_format)
   raster_name <- paste0(paste(names_ncdf,collapse = "_"),file_format)
   
+  ### Need to use this part with format defined as string 
+  #Warning message:
+  #  In .getFormat(filename) : extension .tif/ is unknown. Using default format.
+  #Browse[2]> raster_name
+  #ohterwise *.gri and *.grd are used 
+  
   if(file_format==".tif"){
     format_raster="GTiff"
   }
+  
   
   writeRaster(r,
               filename=file.path(out_dir,raster_name,sep=""),
@@ -390,6 +391,21 @@ import_gimms_nc4 <- function(input_file,var_name="ndvi",out_suffix="",out_dir=".
               datatype=data_type_str,
               options=c("COMPRESS=LZW"))
   
+  #writeRaster(r,
+  #            filename=file.path(out_dir,raster_name,sep=""),
+  #            bylayer=T,
+  #            #suffix=paste(names(r),"_",out_suffix,sep=""),
+  #            #format=format_raster,
+  #            suffix=paste(names(r)),
+  #            overwrite=TRUE,
+  #            NAflag=NA_flag_val,
+  #            datatype=data_type_str,
+  #            options=c("COMPRESS=LZW"))
+  
+  lf_imported <- mixedsort(list.files(path=out_dir,
+                       pattern=paste0("ndvi3g_geo_v1",".*",file_format),
+                       full.names=T))
+  return(lf_imported)
 }
 
 ### generate filter for Moran's I function in raster package
