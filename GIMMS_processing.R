@@ -135,15 +135,42 @@ if(processing_steps$download==TRUE){
                                  end_date,
                                  out_dir=in_dir, #store nc4 in data folder
                                  out_suffix)  ##Functions used in the script
+}else{
+  f <- list.files(path=in_dir,pattern="*.nc4",full.names=T)
 }
   
 ##### Next import in Tif format the NCDF
 
-import_gimms_nc4(f,out_dir,var_name="ndvi",out_suffix="",out_dir=".")
+if(processing_steps$download==TRUE){
   
+  f <- test$downloaded_files
+  #f <- list.files(path=in_dir,pattern="*.nc4",full.names=T)
+  
+  #debug(import_gimms_nc4)
+  
+  lf_imported <- import_gimms_nc4(input_file=f[1],
+                                  var_name="ndvi",
+                                  NA_flag_val=NULL,
+                                  file_format=file_format,
+                                  out_suffix="",
+                                  out_dir=in_dir)
+  
+  #input_file,var_name="ndvi",NA_flag_val,file_format,out_suffix="",out_dir="."
+  
+  lf_imported <- imported_files <- mclapply(f,
+                                            FUN=import_gimms_nc4,
+                                            var_name="ndvi",
+                                            NA_flag_val=NULL,
+                                            file_format=file_format,
+                                            out_suffix="",
+                                            out_dir=in_dir,
+                                            mc.preschedule=FALSE,
+                                            mc.cores = num_cores)
+  
+}
+
   
 #### Next steps to consider:
-## Use the name from MODIS file because it contains information on tile location, date and product type
 ## Use QC index to screen for low value pixels
 
 ########### PART 3: Now do the analyses ###########
@@ -175,7 +202,6 @@ tile_grid_selected <- as(test_grid[56],"Spatial")
 r_tile <- crop(r,tile_grid_selected)
   
 ### Create function for SLURM job:
-
 
 #ARGS 11
 infile_list_tiles <- "list_tiles.txt"
