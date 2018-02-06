@@ -3,7 +3,7 @@
 ##
 ##
 ## DATE CREATED: 01/29/2018
-## DATE MODIFIED: 02/05/2018
+## DATE MODIFIED: 02/07/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -256,16 +256,6 @@ import_gimms_nc4 <- function(input_file,var_name="ndvi",NA_flag_val,file_format,
   
   write.table(raster_df,"raster_subdataset.txt",sep=",")
   
-  #modis_subset_layer <- paste("HDF4_EOS:EOS_GRID:",
-  #                                raster_file,subdataset,sep="")
-  
-  #raster_subset_layer <- paste0("NETCDF:","ndvi3g_geo_v1_1981_0712.nc4",":","ndvi")
-  #r <- readGDAL(raster_subset_layer) #read specific dataset in hdf file and make SpatialGridDataFrame
-  #r  <- brick(r) #convert to raser object
-  
-  #lf<- mixedsort(list.files(pattern="*.nc4"))
-  #browser()
-  
   #lf[2]
   
   #### New import function can be created here...
@@ -375,16 +365,16 @@ import_gimms_nc4 <- function(input_file,var_name="ndvi",NA_flag_val,file_format,
   #Browse[2]> raster_name
   #ohterwise *.gri and *.grd are used 
   
-  if(file_format==".tif"){
-    format_raster="GTiff"
-  }
+  #if(file_format==".tif"){
+  #  format_raster="GTiff"
+  #}
   
   
   writeRaster(r,
-              filename=file.path(out_dir,raster_name,sep=""),
+              filename=file.path(out_dir,raster_name),
               bylayer=T,
               #suffix=paste(names(r),"_",out_suffix,sep=""),
-              format=format_raster,
+              #format=format_raster,
               suffix=paste(names(r)),
               overwrite=TRUE,
               NAflag=NA_flag_val,
@@ -440,14 +430,30 @@ moran_multiple_fun<-function(i,list_param){
 local_moran_multiple_fun<-function(i,list_param){
   #
   #INPUTS:
+  # i: select raster file to process
   #1) list_filters: list of filters with different lags in the image
   #2) r_stack: stack of raster image, only the selected layer is used...
-  #3) out_suffix: if NULL default, no suffix added.
-  #4) out_dir: if NULL default, use current dir
+  #3) NA_flag_val: if NULL, it is derived from input stack
+  #4) file_format: default is *.tif (if NULL)
+  #5) out_suffix: if NULL default, no suffix added.
+  #6) out_dir: if NULL default, use current dir
+  
   #OUTPUTS:
   #
   
   ###### Begin #######
+  
+  
+  ### First, read in all parameters:
+  
+  list_filters <- list_param$list_filters
+  list_r_stack <- list_param$r_stack
+  NA_flag_val <- list_param$NA_flag_val
+  file_format <- list_param$file_format
+  out_suffix <- list_param$out_suffix
+  out_dir <- list_param$out_dir
+  
+  #### Now check default values:
   
   if(is.null(out_suffix)){
     out_suffix <- ""
@@ -458,11 +464,13 @@ local_moran_multiple_fun<-function(i,list_param){
   
   ### Read in filters used to computer Moran's I
   
-  list_filters <-list_param$list_filters
-  
   r <- subset(list_param$r_stack,i)
-  #moran_list <- MoranLocal(r,list_filters[[1]])
   
+  if(is.null(NA_flag_val)){
+    NA_flag_val<- NAvalue(r)
+  }
+  
+  #moran_list <- MoranLocal(r,list_filters[[1]])
   moran_list <- lapply(1:length(list_filters),FUN=function(i,x){MoranLocal(x,w=list_filters[[i]])},x=r)
   r_local_moran <- stack(moran_list)
   
@@ -474,11 +482,20 @@ local_moran_multiple_fun<-function(i,list_param){
   #moran_v <-as.data.frame(unlist(moran_list))
   #names(moran_v)<-names(r)
   raster_name <- paste0(names(r),out_suffix,file_format)
+  data_type_str <- dataType(r)
+  
+  
+  #### Attached to raster name output
+  if(out_suffix==""){
+    out_suffix_s <- names(r_local_moran)
+  }else{
+    out_suffi_s <- paste(names(r_local_moran),"_",out_suffix,sep="")
+  }
   
   writeRaster(r_local_moran,
               filename=raster_name,
               bylayer=T,
-              suffix=paste(names(r_local_moran),"_",out_suffix,sep=""),
+              suffix=out_suffix_s,
               overwrite=TRUE,
               NAflag=NA_flag_val,
               datatype=data_type_str,
@@ -486,7 +503,7 @@ local_moran_multiple_fun<-function(i,list_param){
   
   #### Prepare return object
   
-  return(moran_list)
+  return(r_local_moran)
 }
 
 #Extract moran's I profile from list of images...the list may contain sublist!!! e.g. for diffeferent
