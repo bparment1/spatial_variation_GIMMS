@@ -3,7 +3,7 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 02/05/2018
+## DATE MODIFIED: 02/06/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -52,7 +52,7 @@ library(sf)
 #Benoit setup
 script_path <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
 
-raster_processing_functions <- "GIMMS_processing_functions_02052018.R" #Functions used to mosaic predicted tiles
+raster_processing_functions <- "GIMMS_processing_functions_02062018.R" #Functions used to mosaic predicted tiles
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 
 #########cd ###################################################################
@@ -63,13 +63,11 @@ in_dir <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/data"
 #ARGS 2
 out_dir <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/outputs"
 #ARGS 3:
-
 #NA_flag <- -999999
 NA_flag_val <- NULL
-
 #ARGS 4:
 file_format <- ".tif"
-#ARGS 5
+#ARGS 5:
 scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD BE 10,000 AT LEAST
 #ARGS 6
 create_out_dir_param=TRUE #create a new ouput dir if TRUE
@@ -81,10 +79,10 @@ num_cores <- 2 # number of cores
 date_param <- "1982.01.01;1982.12.31" #start date, end date
 #ARGS 10
 GIMMS_product <- "3g.v1"
-
 #ARGS 11
 processing_steps <- list(download=TRUE,
-                         import=TRUE)
+                         import=TRUE,
+                         grid=TRUE)
 
 ################# START SCRIPT ###############################
 
@@ -110,7 +108,7 @@ if(create_out_dir_param==TRUE){
 }
 
 #######################################
-### PART I DOWNLOAD AND PREPARE DATA #######
+### PART 1: DOWNLOAD DATA #######
 
 #Will be a function
 
@@ -130,20 +128,27 @@ if(processing_steps$download==TRUE){
   #raster_processing_functions <- "GIMMS_processing_functions_02052018.R" #Functions used to mosaic predicted tiles
   #source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
   
-  test <- GIMMS_product_download(GIMMS_product,
+  gimms_download_obj <- GIMMS_product_download(GIMMS_product,
                                  start_date,
                                  end_date,
                                  out_dir=in_dir, #store nc4 in data folder
                                  out_suffix)  ##Functions used in the script
+  f <- gimms_download_obj$downloaded_files
+  
+  
 }else{
   f <- list.files(path=in_dir,pattern="*.nc4",full.names=T)
 }
-  
+
+
+##############################
+#### PART 2: Import dataset
+####
 ##### Next import in Tif format the NCDF
 
 if(processing_steps$download==TRUE){
   
-  f <- test$downloaded_files
+  #f <- test$downloaded_files
   #f <- list.files(path=in_dir,pattern="*.nc4",full.names=T)
   
   #debug(import_gimms_nc4)
@@ -169,52 +174,104 @@ if(processing_steps$download==TRUE){
   
 }
 
-  
 #### Next steps to consider:
 ## Use QC index to screen for low value pixels
 
-########### PART 3: Now do the analyses ###########
+#########################################
+########### PART 3: Generate grid ###########
 
-#Tthis can be in another script.
+#This can be non-overlapping or overlapping
 
-lf_gimms <- mixedsort(list.files(pattern=file_format,path="."))
+lf_gimms <- mixedsort(list.files(pattern=file_format,path=in_dir,full.names=T))
 
-r <- raster(lf_gimms[1])
+ref_file <- lf_gimms[1]
 
 ##### Generate a grid/tile for processing:
 ## Must transformed to a function later on.
 
-# for the time being generate a no-overlapping grid tiling and crop
-extent_val <- extent(r)
-bbox_val <- st_bbox(r)
-test_sp <- as(extent_val, 'SpatialPolygons')
-outline_sf <-as(test_sp,"sf")
-
-#Can buffer?
-
-#test_grid <- st_make_grid(outline_sf, n=18)
-test_grid <- st_make_grid(outline_sf, n=9)
-
-plot(r)
-plot(test_grid,add=T)
-plot(test_grid[56],add=T,col="red")
-tile_grid_selected <- as(test_grid[56],"Spatial")
-r_tile <- crop(r,tile_grid_selected)
+if(processing_steps$grid==TRUE){
   
+  r <- raster(ref_file)
+  
+  # for the time being generate a non-overlapping grid tiling and crop
+  extent_val <- extent(r)
+  bbox_val <- st_bbox(r)
+  test_sp <- as(extent_val, 'SpatialPolygons')
+  outline_sf <-as(test_sp,"sf")
+  
+  #Can buffer?
+  
+  #test_grid <- st_make_grid(outline_sf, n=18)
+  test_grid <- st_make_grid(outline_sf, n=9)
+  
+  plot(r)
+  plot(test_grid,add=T)
+  plot(test_grid[56],add=T,col="red")
+  
+  out_grid_filename <- file.path(out_dir,"test_grid.shp")
+  st_write(test_grid,dsn=out_grid_filename)
+  
+  #Generate overlapping grid option to come later
+  
+}
+
+
+#########################################
+########### PART 4: Analysis of spatial variability ###########
+
+#This part should be a separate script to run on cluster
+
 ### Create function for SLURM job:
 
 #ARGS 11
-infile_list_tiles <- "list_tiles.txt"
-
+#infile_list_tiles <- "list_tiles.txt"
 #ARGS 12: 
 #TILE INDEX this is from the array
 # Get the the array id value from the environment variable passed from sbatch
 
-SLURM_ARRAY_TASK_ID <- Sys.getenv('SLURM_ARRAY_TASK_ID')
-tile_index <- Sys.getenv("SLURM_ARRAY_TASK_ID") #this is should be an integer from 1:n, n is the number of tiles
+#SLURM_ARRAY_TASK_ID <- Sys.getenv('SLURM_ARRAY_TASK_ID')
+#tile_index <- Sys.getenv("SLURM_ARRAY_TASK_ID") #this is should be an integer from 1:n, n is the number of tiles
 #slurm_arrayid <- Sys.getenv('SLURM_ARRAYID') #work with #SARRAY option in SLURM
 #tile_index <- as.numeric(slurm_arrayid) # coerce the value to an integer
 #tile_index <- 1  #for testing
+
+#grid_filename
+grid_filename <- out_grid_filename
+tile_grid <- st_read(grid_filename)
+
+tile_index <- 56
+
+### Plot tiles being processed:
+
+#tile_grid_selected <- as(tile_grid[tile_index,],"Spatial")
+tile_grid_selected <- tile_grid[tile_index,]
+
+tile_selected_spdf <- as(tile_grid_selected, "Spatial")
+
+plot(r)
+plot(tile_grid$geometry,add=T)
+plot(tile_grid_selected,add=T,col=NA,border="red")
+
+text(gCentroid(tile_selected_spdf),paste0("tile ",tile_index, " processed"))
+#text(st_centroid(tile_grid_selected),paste0("tile ",tile_index, " processed"))
+r_tile <- crop(r,tile_selected_spdf)
+
+#writeRaster(r_tile,)
+
+raster_name <- paste0("r_tile_",tile_index,"_",out_suffix_s,file_format)
+
+data_type_str <- dataType(r_tile) #find the dataTyre
+NA_flag_val_tmp <- NAvalue(r_tile)
+writeRaster(r_tile,
+            filename=file.path(out_dir,raster_name),
+            #bylayer=F,
+            #suffix=paste(names(r),"_",out_suffix,sep=""),
+            #format=format_raster,
+            #suffix=paste(names(r)),
+            overwrite=TRUE,
+            NAflag=NA_flag_val_tmp,
+            datatype=data_type_str,
+            options=c("COMPRESS=LZW"))
 
 #generate filters for 10 lags: quick solution
 
@@ -223,7 +280,6 @@ list_filters<-lapply(1:10,FUN=autocor_filter_fun,f_type="queen") #generate 10 fi
 
 r_stack <- r_tile
 
-##
 list_param_moran <- list(list_filters=list_filters,
                          r_stack=r_stack,
                          out_suffix=NULL,
@@ -234,7 +290,7 @@ nlayers(r_stack)
 
 strsplit(names(r),split="[.]")
 
-debug(local_moran_multiple_fun)
+#debug(local_moran_multiple_fun)
 r_test <- local_moran_multiple_fun(1,list_param=list_param_moran)
 
   
@@ -243,8 +299,14 @@ local_moran_I_list <-mclapply(1:nlayers(r_stack), list_param=list_param_moran,
                       mc.cores = 2) #This is the end bracket from mclapply(...) statement
 
 r_local_moran_stack <- stack(unlist(local_moran_I_list))
+
+#########################################
+########### PART 5: Results: Examining lag information and variability ###########
+
 plot(r_local_moran_stack,y=2)
 animate(r_local_moran_stack)
+
+####
 
 x_val <- extract(r_local_moran_stack,cbind(-119.6982,34.4208))
 
@@ -284,4 +346,4 @@ plot(moran_df$moran_I ~moran_df$lag)
 
 #dev.off()
 
-######################### END OF SCRIPT ##############################
+##########################################  END OF SCRIPT  ##############################
