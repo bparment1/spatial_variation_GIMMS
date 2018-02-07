@@ -306,14 +306,29 @@ r_local_moran_stack <- stack(unlist(local_moran_I_list))
 plot(r_local_moran_stack,y=2)
 animate(r_local_moran_stack)
 
-####
+#### Generate longitude and latitude info
+locations_mat <- rbind(c(-110.6982,34.4208),
+                      c(-119.6982,34.4208),
+                      c(-101,42),
+                      c(-123,47))
 
-x_val <- extract(r_local_moran_stack,cbind(-119.6982,34.4208))
+locations_df <- as.data.frame(locations_mat)
+names(locations_df)<- c("longitude","latitude")
+locations_df$ID <- 1:nrow(locations_df)
+locations_sf <- st_as_sf(locations_df,coords=c("longitude", "latitude"), 
+                         crs = 4326) 
+  
+  
+plot(r_tile)
+plot(locations_sf$geometry,add=T)
 
-plot(x_val[1,],type="l")
+x_val <- extract(r_local_moran_stack,locations_mat)
 
-x_val <- extract(r_local_moran_stack,cbind(-110.6982,34.4208))
-plot(x_val[1,],type="l")
+plot(x_val[1,],type="l",ylim=c(-1.2,1.2))
+lines(x_val[2,],type="l",col="red")
+lines(x_val[3,],type="l",col="green")
+lines(x_val[4,],type="l",col="blue")
+
 
 moran_I_df <-mclapply(1:nlayers(r_stack), list_param=list_param_moran, 
                       FUN=moran_multiple_fun,mc.preschedule=FALSE,
