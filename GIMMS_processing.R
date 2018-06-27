@@ -3,7 +3,7 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 02/06/2018
+## DATE MODIFIED: 06/27/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -53,10 +53,12 @@ library(sf)
 script_path <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
 
 raster_processing_functions <- "GIMMS_processing_functions_02062018.R" #Functions used to mosaic predicted tiles
+generate_tiles_functions <- "generate_spatial_tiles_functions_06282018.R" #Functions used to mosaic predicted tiles
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
+source(file.path(script_path,generate_tiles_functions))
 
 #########cd ###################################################################
-#####  Parameters and argument set up ###########
+#####  Parameters and argument set up ########### 
 
 #ARGS 1
 in_dir <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/data"
@@ -72,7 +74,7 @@ scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD
 #ARGS 6
 create_out_dir_param=TRUE #create a new ouput dir if TRUE
 #ARGS 7
-out_suffix <-"GIMMS_processing_02052018" #output suffix for the files and ouptut folder
+out_suffix <-"GIMMS_processing_06272018" #output suffix for the files and ouptut folder
 #ARGS 8
 num_cores <- 2 # number of cores
 #ARGS 9
@@ -80,9 +82,9 @@ date_param <- "1982.01.01;1982.12.31" #start date, end date
 #ARGS 10
 GIMMS_product <- "3g.v1"
 #ARGS 11
-processing_steps <- list(download=TRUE,
-                         import=TRUE,
-                         grid=TRUE)
+processing_steps <- list(download=FALSE,
+                         import=FALSE,
+                         tiling=TRUE)
 
 ################# START SCRIPT ###############################
 
@@ -189,27 +191,51 @@ ref_file <- lf_gimms[1]
 ##### Generate a grid/tile for processing:
 ## Must transformed to a function later on.
 
-if(processing_steps$grid==TRUE){
+if(processing_steps$tiling==TRUE){
   
-  r <- raster(ref_file)
+  r_ref <- raster(ref_file)
   
-  # for the time being generate a non-overlapping grid tiling and crop
-  extent_val <- extent(r)
-  bbox_val <- st_bbox(r)
-  test_sp <- as(extent_val, 'SpatialPolygons')
-  outline_sf <-as(test_sp,"sf")
+  plot(r_ref)
   
-  #Can buffer?
+  ### generate overlapping tiles
+  x_overlap <- 0.25
+  y_overlap <- 0.25
   
-  #test_grid <- st_make_grid(outline_sf, n=18)
-  test_grid <- st_make_grid(outline_sf, n=9)
+  ### store in the tile directory
+  #undebug(generate_tiles_from_extent)
   
-  plot(r)
-  plot(test_grid,add=T)
-  plot(test_grid[56],add=T,col="red")
+  #we want 20x20
+  x_ratio <- 360/20
+  y_ratio <- 180/20
   
-  out_grid_filename <- file.path(out_dir,"test_grid.shp")
-  st_write(test_grid,dsn=out_grid_filename)
+  test_tiles2_2_overlap50 <- generate_tiles_from_extent(r_ref,
+                                                        y_ratio=y_ratio,
+                                                        x_ratio=x_ratio,
+                                                        y_overlap=y_overlap,
+                                                        x_overlap=x_overlap,
+                                                        out_suffix=out_suffix,
+                                                        out_dir=NULL) #this does not work...
+  
+  df_tiles <- test_tiles2_2_overlap50$df_tiles
+  
+  head(df_tiles)
+  dim(df_tiles) #too many tiles: 288
+  
+  plot(r_ref)
+  plot(test_tiles2_2_overlap50$list_tiles[[67]],add=T)
+  
+  #### Transform a data.frame object to a sf object using coordinates x and y
+  centroids_tiles <- st_as_sf(df_tiles,
+                      coords = c('x_center', 'y_center'),
+                      crs = proj4string(r_ref))
+  
+  #plot(centroids_tiles["ID"],add=T)
+  text(df_tiles$x_center,df_tiles$y_center,df_tiles$ID,cex=0.5)
+  centroids_tiles$ID
+  
+  out_centroids_filename <- file.path(out_dir,"tiles_centroids.shp")
+  st_write(centroids_tiles,
+           dsn=out_centroids_filename)
   
   #Generate overlapping grid option to come later
   
