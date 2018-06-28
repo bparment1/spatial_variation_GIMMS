@@ -181,18 +181,20 @@ calculate_moranI_profile <- function(lf,nb_lag){
 
 generate_lag_data_time_fun <- function(tile_index,grid_filename,r,num_cores,out_dir,out_suffix){
   
+  if(inherits(r)!="Raster"){
+    r <- stack(r)
+  }
+  
   grid_filename <- out_tiles_filename
   tile_grid <- st_read(grid_filename)
-  
   
   ### Plot tiles being processed:
   
   #tile_grid_selected <- as(tile_grid[tile_index,],"Spatial")
   tile_grid_selected <- tile_grid[tile_index,]
-  
   tile_selected_spdf <- as(tile_grid_selected, "Spatial")
   
-  plot(r)
+  plot(r,y=1)
   plot(tile_grid$geometry,add=T)
   plot(tile_grid_selected,add=T,col=NA,border="red")
   
@@ -225,27 +227,31 @@ generate_lag_data_time_fun <- function(tile_index,grid_filename,r,num_cores,out_
                        f_type="queen") #generate 10 filters
   #moran_list <- lapply(list_filters,FUN=Moran,x=r)
   
-  r_stack <- r_tile
+  #r_stack <- r_tile
   
   list_param_moran <- list(list_filters=list_filters,
-                           r_stack=r_stack,
+                           r_stack=r_tile,
                            out_suffix=NULL,
                            out_dir=NULL)
   
   #moran_r <-moran_multiple_fun(1,list_param=list_param_moran)
-  nlayers(r_stack) 
+  nlayers(r_tile) 
   
   strsplit(names(r),split="[.]")
   
   #debug(local_moran_multiple_fun)
   r_test <- local_moran_multiple_fun(1,list_param=list_param_moran)
   
+  ### Change function to have option for multibands to reduce number of files outputs.
   
-  local_moran_I_list <-mclapply(1:nlayers(r_stack), list_param=list_param_moran, 
-                                FUN=local_moran_multiple_fun,mc.preschedule=FALSE,
+  #12:19
+  local_moran_I_list <-mclapply(1:nlayers(r_tile), 
+                                list_param=list_param_moran, 
+                                FUN=local_moran_multiple_fun,
+                                mc.preschedule=FALSE,
                                 mc.cores = num_cores) #This is the end bracket from mclapply(...) statement
   
-  r_local_moran_stack <- stack(unlist(local_moran_I_list))
+  #r_local_moran_stack <- stack(unlist(local_moran_I_list))
   
   ### Add extraction of profiles in sample:
   
