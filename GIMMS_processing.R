@@ -254,35 +254,28 @@ if(processing_steps$tiling==TRUE){
   st_crs(tiles_combined_sf) <- proj4string(r_ref)
   
   tiles_combined_sf$ID <- 1:nrow(tiles_combined_sf)
-  tiles_all <- join(tiles_combined_sf,df_tiles)
+  #tiles_all <- join(tiles_combined_sf,df_tiles)
   tiles_combined_sf <- merge(tiles_combined_sf,df_tiles,by="ID")
-  View(tiles_combined_sf)
+  #View(tiles_combined_sf)
   
-  test_sf <- st_intersection(tiles_combined_sf,KZ_sf)
-  test_sf <- st_intersection(KZ_sf,tiles_combined_sf)
-  test_sf
-  plot(test_sf$geometry,border="red")
-  #test_sf <- st_intersects(tiles_combined_sf,KZ_sf)
-  test_sf <- st_intersects(KZ_sf,tiles_combined_sf)
-  test_sf[[1]]
-  class(test_sf)
-  unlist(test_sf)
-  tiles_combined_sf$ID
-  selected_tiles <- filter(tiles_combined_sf,ID%in%unlist(test_sf))
-  #selected_tiles
+  selected_poly_ID <- st_intersects(KZ_sf,tiles_combined_sf)
+  selected_poly_ID <- unlist(selected_poly_ID)
   
-  #sum(tiles_combined_sf$ID==unlist(test_sf))
-  
-  
+  tiles_reg_sf <- filter(tiles_combined_sf,ID%in%selected_poly_ID)
+
+  ### visualize selected polygons
   plot(r_ref)
   text(df_tiles$x_center,df_tiles$y_center,df_tiles$ID,cex=0.5)
   plot(KZ_sf$geometry,add=T,border="blue")
-  #plot(test_tiles2_2_overlap50$list_tiles[[89]],add=T)
   plot(selected_tiles$geometry,border="red",add=T)
   
-  ## Let's drop 41 isnce the overlap is low
+  ## Let's drop 41 since the overlap is low
   
-  selected_tiles
+  tiles_reg_sf <- filter(tiles_reg_sf,ID!=41)
+  
+  out_tiles_filename <- file.path(out_dir,"tiles_reg.shp")
+  st_write(tiles_reg_sf,
+           dsn=out_tiles_filename)
   
 }
 
@@ -307,10 +300,10 @@ if(processing_steps$tiling==TRUE){
 #tile_index <- 1  #for testing
 
 #grid_filename
-grid_filename <- out_grid_filename
+grid_filename <- out_tiles_filename
 tile_grid <- st_read(grid_filename)
 
-tile_index <- 56
+tile_index <- 3 #This is tile grid 65
 
 ### Plot tiles being processed:
 
