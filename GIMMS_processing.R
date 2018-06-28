@@ -1,19 +1,20 @@
 ############### SESYNC Research Support: GIMMS Spatial Variation ########## 
-## Help in processing modis data for the workshop group.
+## Processing GIMMS NDVI data to explore spatio-temporal variability.
+## GIMMS covers the 1982-2015 time period at 0.08333 degree resolution (~8km).
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 06/27/2018
+## DATE MODIFIED: 06/28/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
 ## ISSUE: 
 ## TO DO:
 ##
-## COMMIT: Splitting functions and main scripts
+## COMMIT: testing tiling
 ##
-## Links to investigate:
-#https://cran.r-project.org/web/packages/gstat/vignettes/st.pdf
+##Data downloaded from:
+#https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/
 
 ###################################################
 #
@@ -364,11 +365,15 @@ local_moran_I_list <-mclapply(1:nlayers(r_stack), list_param=list_param_moran,
 
 r_local_moran_stack <- stack(unlist(local_moran_I_list))
 
+### Add extraction of profiles in sample:
+
+
 #########################################
 ########### PART 5: Results: Examining lag information and variability ###########
 
 plot(r_local_moran_stack,y=2)
-animate(r_local_moran_stack)
+animate(r_local_moran_stack) ## Generate movie later on:
+
 
 #### Generate longitude and latitude info
 locations_mat <- rbind(c(-110.6982,34.4208),
