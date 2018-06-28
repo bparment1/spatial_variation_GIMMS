@@ -15,6 +15,15 @@
 ##
 ## Links to investigate:
 
+
+#### This files contains the following functions:
+
+#1) autocor_filter_fun
+#2) moran_multiple_fun
+#3) local_moran_multiple_fun
+#4) calculate_moranI_profile
+#5) generate_lag_data_time_fun
+
 ###################################################
 #
 
@@ -168,6 +177,79 @@ calculate_moranI_profile <- function(lf,nb_lag){
   }
   names(list_moran_df) <- names(lf)
   return(list_moran_df)
+}
+
+generate_lag_data_time_fun <- function(tile_index,grid_filename,r,num_cores,out_dir,out_suffix){
+  
+  grid_filename <- out_tiles_filename
+  tile_grid <- st_read(grid_filename)
+  
+  
+  ### Plot tiles being processed:
+  
+  #tile_grid_selected <- as(tile_grid[tile_index,],"Spatial")
+  tile_grid_selected <- tile_grid[tile_index,]
+  
+  tile_selected_spdf <- as(tile_grid_selected, "Spatial")
+  
+  plot(r)
+  plot(tile_grid$geometry,add=T)
+  plot(tile_grid_selected,add=T,col=NA,border="red")
+  
+  text(gCentroid(tile_selected_spdf),paste0("tile ",tile_index, " processed"))
+  
+  #text(st_centroid(tile_grid_selected),paste0("tile ",tile_index, " processed"))
+  r_tile <- crop(r,tile_selected_spdf)
+  
+  #writeRaster(r_tile,)
+  out_suffix <- out_suffix_s
+  raster_name <- paste0("r_tile_",tile_index,"_",out_suffix_s,file_format)
+  
+  data_type_str <- dataType(r_tile) #find the dataTyre
+  NA_flag_val_tmp <- NAvalue(r_tile)
+  writeRaster(r_tile,
+              filename=file.path(out_dir,raster_name),
+              #bylayer=F,
+              #suffix=paste(names(r),"_",out_suffix,sep=""),
+              #format=format_raster,
+              #suffix=paste(names(r)),
+              overwrite=TRUE,
+              NAflag=NA_flag_val_tmp,
+              datatype=data_type_str,
+              options=c("COMPRESS=LZW"))
+  
+  #generate filters for 10 lags: quick solution
+  
+  list_filters<-lapply(1:10,
+                       FUN=autocor_filter_fun,
+                       f_type="queen") #generate 10 filters
+  #moran_list <- lapply(list_filters,FUN=Moran,x=r)
+  
+  r_stack <- r_tile
+  
+  list_param_moran <- list(list_filters=list_filters,
+                           r_stack=r_stack,
+                           out_suffix=NULL,
+                           out_dir=NULL)
+  
+  #moran_r <-moran_multiple_fun(1,list_param=list_param_moran)
+  nlayers(r_stack) 
+  
+  strsplit(names(r),split="[.]")
+  
+  #debug(local_moran_multiple_fun)
+  r_test <- local_moran_multiple_fun(1,list_param=list_param_moran)
+  
+  
+  local_moran_I_list <-mclapply(1:nlayers(r_stack), list_param=list_param_moran, 
+                                FUN=local_moran_multiple_fun,mc.preschedule=FALSE,
+                                mc.cores = num_cores) #This is the end bracket from mclapply(...) statement
+  
+  r_local_moran_stack <- stack(unlist(local_moran_I_list))
+  
+  ### Add extraction of profiles in sample:
+  
+  return(r_local_moran_stack)
 }
 
 ######################### END OF SCRIPT ##############################
