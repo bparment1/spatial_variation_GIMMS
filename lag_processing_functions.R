@@ -84,6 +84,7 @@ local_moran_multiple_fun<-function(i,list_param){
   # i: select raster file to process
   #1) list_filters: list of filters with different lags in the image
   #2) r_stack: stack of raster image, only the selected layer is used...
+  #3) multiband: if TRUE generate output as multiband file for each file in the stack
   #3) NA_flag_val: if NULL, it is derived from input stack
   #4) file_format: default is *.tif (if NULL)
   #5) out_suffix: if NULL default, no suffix added.
@@ -111,6 +112,10 @@ local_moran_multiple_fun<-function(i,list_param){
   }
   if(is.null(out_dir)){
     out_dir <- "."
+  }
+  
+  if(multiband==TRUE){
+    d
   }
   
   ### Read in filters used to computer Moran's I
@@ -179,7 +184,7 @@ calculate_moranI_profile <- function(lf,nb_lag){
   return(list_moran_df)
 }
 
-generate_lag_data_time_fun <- function(tile_index,grid_filename,r,num_cores,out_dir,out_suffix){
+generate_lag_data_time_fun <- function(tile_index,grid_filename,r,multiband=T,file_format=".tif",num_cores=1,out_dir=NULL,out_suffix=NULL){
   
   if(inherits(r)!="Raster"){
     r <- stack(r)
@@ -231,6 +236,7 @@ generate_lag_data_time_fun <- function(tile_index,grid_filename,r,num_cores,out_
   
   list_param_moran <- list(list_filters=list_filters,
                            r_stack=r_tile,
+                           multiband=multiband,
                            out_suffix=NULL,
                            out_dir=NULL)
   
@@ -260,3 +266,98 @@ generate_lag_data_time_fun <- function(tile_index,grid_filename,r,num_cores,out_
 
 ######################### END OF SCRIPT ##############################
 
+n_layer <- length(modis_subset_layer_Day)
+
+if(n_layer==1){
+  r <- readGDAL(modis_subset_layer_Day) 
+  r  <-raster(r)
+}
+if(n_layer>1){
+  list_r <- lapply(modis_subset_layer_Day,function(x){raster(readGDAL(x))})
+  #r <- readGDAL(modis_subset_layer_Day) 
+  r <- stack(list_r)
+  get_names_layers <- function(x){val_extracted <- unlist(strsplit(x,":")); val_extracted[length(val_extracted)]}
+  names_layers <- unlist(lapply(modis_subset_layer_Day,get_names_layers))
+  names(r) <- names_layers
+}
+
+if(!is.null(scaling_factors)){ #if scaling factor exists, scale values...(not applied for QC flags!!!)
+  r <- scaling_factors[1]*r + scaling_factors[2]
+}
+#Finish this part...write out
+names_hdf <- as.character(unlist(strsplit(x=basename(hdf_filename), split="[.]")))
+
+char_nb<-length(names_hdf)-2
+names_hdf <- names_hdf[1:char_nb]
+names_hdf <- paste(names_hdf,collapse="_") #this is the name of the hdf file with "." replaced by "_"
+raster_name <- paste(names_hdf,"_",out_suffix,file_format,sep="")
+#out_dir_str <-  dirname(hdf)
+#set output dir from input above
+if(n_layer==1){
+  raster_name_tmp <- raster_name
+  if(file_format==".tif"){
+    
+    writeRaster(r, 
+                NAflag=NA_flag_val,
+                filename=file.path(out_dir_s,raster_name_tmp),
+                bylayer=TRUE,
+                bandorder="BSQ",
+                overwrite=TRUE,
+                #datatype=data_type_str, #this should be a future option for reduced size!!!
+                options=c("COMPRESS=LZW")) #compress by default
+  }else{
+    
+    writeRaster(r, 
+                NAflag=NA_flag_val,
+                filename=file.path(out_dir_s,raster_name_tmp),
+                bylayer=TRUE,
+                bandorder="BSQ",
+                overwrite=TRUE)   
+  }
+}
+
+#### Now deal with multiband e.g. MOD09 reflectance
+if(n_layer>1){
+  
+  #Write out as brick
+  data_type_str <- dataType(r) #find the dataType, this should be a future input param
+  if(is.null(NA_flag_val)){
+    NA_flag_val <- NAvalue(r)
+  }
+  
+  if(multiband==TRUE){
+    raster_name_tmp <- paste(names_hdf,"_",product_type,file_format,sep="")
+    bylayer_val <- FALSE #don't write out separate layer files for each "band"
+  }
+  if(multiband==FALSE){
+    raster_name_tmp <- raster_name
+    bylayer_val <- TRUE #write out separate layer files for each "band"
+  }
+  
+  if(file_format==".tif"){
+    writeRaster(r,
+                filename=file.path(out_dir_s,raster_name_tmp),
+                bylayer=bylayer_val,
+                #suffix=paste(names(r),"_",out_suffix,sep=""),
+                #format=format_raster,
+                suffix=paste(names(r)),
+                overwrite=TRUE,
+                NAflag=NA_flag_val,
+                datatype=data_type_str,
+                options=c("COMPRESS=LZW"))
+    
+  }else{
+    #Don't use compression option if not tif
+    writeRaster(r,
+                filename=file.path(out_dir_s,raster_name_tmp),
+                bylayer=multiband,
+                #suffix=paste(names(r),"_",out_suffix,sep=""),
+                #format=format_raster,
+                suffix=paste(names(r)),
+                overwrite=TRUE,
+                NAflag=NA_flag_val,
+                datatype=data_type_str)
+    
+  }
+  
+}
