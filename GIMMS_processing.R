@@ -4,14 +4,14 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 06/28/2018
+## DATE MODIFIED: 06/29/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
 ## ISSUE: 
 ## TO DO:
 ##
-## COMMIT: testing tiling
+## COMMIT: splitting function for lag processing and main script
 ##
 ##Data downloaded from:
 #https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/
@@ -53,10 +53,12 @@ library(sf)
 #Benoit setup
 script_path <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
 
-raster_processing_functions <- "GIMMS_processing_functions_02062018.R" #Functions used to mosaic predicted tiles
+raster_processing_functions <- "GIMMS_processing_functions_06282018.R" #Functions used to mosaic predicted tiles
 generate_tiles_functions <- "generate_spatial_tiles_functions_06282018.R" #Functions used to mosaic predicted tiles
+lag_processing_functions <- "lag_processing_functions_06292018.R"
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
+source(file.path(script_path,lag_processing_functions))
 
 #########cd ###################################################################
 #####  Parameters and argument set up ########### 
@@ -280,6 +282,10 @@ if(processing_steps$tiling==TRUE){
   
 }
 
+test <-getData("GADM",country="*", level=0)
+codes_countries <- ccodes()
+test <- getData("GDAM",codes_countries$ISO3,level=0)
+codes_countries$ISO3
 
 #########################################
 ########### PART 4: Analysis of spatial variability ###########
@@ -300,74 +306,30 @@ if(processing_steps$tiling==TRUE){
 #tile_index <- as.numeric(slurm_arrayid) # coerce the value to an integer
 #tile_index <- 1  #for testing
 
+#### Arguments for function
+#tile_index
 #grid_filename
-grid_filename <- out_tiles_filename
-tile_grid <- st_read(grid_filename)
+#r_reg: raster file stack (can be one image too) or one image
+#multiband
+#out_dir
+#out_suffix
 
 tile_index <- 3 #This is tile grid 65
+lf_gimms <- mixedsort(list.files(pattern=file_format,path=in_dir,full.names=T))
 
-### Plot tiles being processed:
+#ref_file <- stack(lf_gimms[1]
 
-#tile_grid_selected <- as(tile_grid[tile_index,],"Spatial")
-tile_grid_selected <- tile_grid[tile_index,]
+debug(generate_lag_data_time_fun)
 
-tile_selected_spdf <- as(tile_grid_selected, "Spatial")
-
-plot(r)
-plot(tile_grid$geometry,add=T)
-plot(tile_grid_selected,add=T,col=NA,border="red")
-
-text(gCentroid(tile_selected_spdf),paste0("tile ",tile_index, " processed"))
-#text(st_centroid(tile_grid_selected),paste0("tile ",tile_index, " processed"))
-r_tile <- crop(r,tile_selected_spdf)
-
-#writeRaster(r_tile,)
-
-raster_name <- paste0("r_tile_",tile_index,"_",out_suffix_s,file_format)
-
-data_type_str <- dataType(r_tile) #find the dataTyre
-NA_flag_val_tmp <- NAvalue(r_tile)
-writeRaster(r_tile,
-            filename=file.path(out_dir,raster_name),
-            #bylayer=F,
-            #suffix=paste(names(r),"_",out_suffix,sep=""),
-            #format=format_raster,
-            #suffix=paste(names(r)),
-            overwrite=TRUE,
-            NAflag=NA_flag_val_tmp,
-            datatype=data_type_str,
-            options=c("COMPRESS=LZW"))
-
-#generate filters for 10 lags: quick solution
-
-list_filters<-lapply(1:10,FUN=autocor_filter_fun,f_type="queen") #generate 10 filters
-#moran_list <- lapply(list_filters,FUN=Moran,x=r)
-
-r_stack <- r_tile
-
-list_param_moran <- list(list_filters=list_filters,
-                         r_stack=r_stack,
-                         out_suffix=NULL,
-                         out_dir=NULL)
-
-#moran_r <-moran_multiple_fun(1,list_param=list_param_moran)
-nlayers(r_stack) 
-
-strsplit(names(r),split="[.]")
-
-#debug(local_moran_multiple_fun)
-r_test <- local_moran_multiple_fun(1,list_param=list_param_moran)
-
+test <- generate_lag_data_time_fun(tile_index=tile_index,
+                                   grid_filename=out_tiles_filename,
+                                   r=lf_gimms,
+                                   multi_band=multiband,
+                                   file_format=file_format,
+                                   num_cores=4,
+                                   out_dir=out_dir,
+                                   out_suffix=out_suffix)
   
-local_moran_I_list <-mclapply(1:nlayers(r_stack), list_param=list_param_moran, 
-                      FUN=local_moran_multiple_fun,mc.preschedule=FALSE,
-                      mc.cores = 2) #This is the end bracket from mclapply(...) statement
-
-r_local_moran_stack <- stack(unlist(local_moran_I_list))
-
-### Add extraction of profiles in sample:
-
-
 #########################################
 ########### PART 5: Results: Examining lag information and variability ###########
 
