@@ -98,7 +98,9 @@ generate_grid_tiles <- function(ref_file,n_tile,n_tile_x, n_tile_y,out_suffix=NU
 
 generate_tiles_from_extent <- function(r_ref,y_ratio=2,x_ratio=2,x_overlap=0,y_overlap=0,out_suffix=NULL,out_dir=NULL){
   #
-  r_ref <- raster(infile_ref_r)
+  if(!(inherits(r_ref,"Raster"))){
+    r_ref <- raster(r_ref)
+  }
   plot(r_ref)
   
   reg_outline_sp <- create_polygon_from_extent(reg_ref_rast=r_ref,outDir=NULL,outSuffix=NULL)
