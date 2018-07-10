@@ -91,6 +91,8 @@ tile_ratio <- c(360/20,180/20) # in the order for x and y
 #ARGS 12:generate overlapping tiles
 tile_overlap <- c(0.25,0.25) # in the order for x and y
 #ARGS 13
+multiband <- TRUE
+
 processing_steps <- list(download=FALSE,
                          import=FALSE,
                          tiling=TRUE)
@@ -293,7 +295,7 @@ if(processing_steps$tiling==TRUE){
   plot(r_ref)
   text(df_tiles$x_center,df_tiles$y_center,df_tiles$ID,cex=0.5)
   plot(KZ_sf$geometry,add=T,border="blue")
-  plot(selected_tiles$geometry,border="red",add=T)
+  plot(tiles_reg_sf$geometry,border="red",add=T)
   
   ## Let's drop 41 since the overlap is low
   
@@ -342,10 +344,19 @@ lf_gimms <- mixedsort(list.files(pattern=file_format,path=in_dir,full.names=T))
 
 debug(generate_lag_data_time_fun)
 
+generate_lag_data_time_fun <- function(tile_index,
+                                       grid_filename,
+                                       r,
+                                       multiband=T,
+                                       file_format=".tif",
+                                       num_cores=1,
+                                       out_dir=NULL,
+                                       out_suffix=NULL)
+  
 test <- generate_lag_data_time_fun(tile_index=tile_index,
                                    grid_filename=out_tiles_filename,
                                    r=lf_gimms,
-                                   multi_band=multiband,
+                                   multiband=multiband,
                                    file_format=file_format,
                                    num_cores=4,
                                    out_dir=out_dir,
