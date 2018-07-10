@@ -4,7 +4,7 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 06/29/2018
+## DATE MODIFIED: 07/10/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -53,9 +53,9 @@ library(sf)
 #Benoit setup
 script_path <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
 
-raster_processing_functions <- "GIMMS_processing_functions_06282018.R" #Functions used to mosaic predicted tiles
-generate_tiles_functions <- "generate_spatial_tiles_functions_06282018.R" #Functions used to mosaic predicted tiles
-lag_processing_functions <- "lag_processing_functions_06292018.R"
+raster_processing_functions <- "GIMMS_processing_functions_07102018.R" #Functions used to mosaic predicted tiles
+generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Functions used to mosaic predicted tiles
+lag_processing_functions <- "lag_processing_functions_07102018.R"
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
 source(file.path(script_path,lag_processing_functions))
@@ -77,14 +77,20 @@ scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD
 #ARGS 6
 create_out_dir_param=TRUE #create a new ouput dir if TRUE
 #ARGS 7
-out_suffix <-"GIMMS_processing_06272018" #output suffix for the files and ouptut folder
+out_suffix <-"GIMMS_processing_07102018" #output suffix for the files and ouptut folder
 #ARGS 8
 num_cores <- 2 # number of cores
 #ARGS 9
 date_param <- "1982.01.01;1982.12.31" #start date, end date
 #ARGS 10
 GIMMS_product <- "3g.v1"
+
 #ARGS 11
+#we want 20x20
+tile_ratio <- c(360/20,180/20) # in the order for x and y
+#ARGS 12:generate overlapping tiles
+tile_overlap <- c(0.25,0.25) # in the order for x and y
+#ARGS 13
 processing_steps <- list(download=FALSE,
                          import=FALSE,
                          tiling=TRUE)
@@ -142,7 +148,9 @@ if(processing_steps$download==TRUE){
   
   
 }else{
-  f <- list.files(path=in_dir,pattern="*.nc4",full.names=T)
+  f <- list.files(path=in_dir,
+                  pattern="*.nc4",
+                  full.names=T)
 }
 
 
@@ -151,7 +159,7 @@ if(processing_steps$download==TRUE){
 ####
 ##### Next import in Tif format the NCDF
 
-if(processing_steps$download==TRUE){
+if(processing_steps$import==TRUE){
   
   #f <- test$downloaded_files
   #f <- list.files(path=in_dir,pattern="*.nc4",full.names=T)
@@ -177,6 +185,10 @@ if(processing_steps$download==TRUE){
                                             mc.preschedule=FALSE,
                                             mc.cores = num_cores)
   
+}else{
+  f <- list.files(path=in_dir,
+                  pattern=paste0("*",file_format),
+                  full.names=T)
 }
 
 #### Next steps to consider:
@@ -187,7 +199,7 @@ if(processing_steps$download==TRUE){
 
 #This can be non-overlapping or overlapping
 
-lf_gimms <- mixedsort(list.files(pattern=file_format,path=in_dir,full.names=T))
+lf_gimms <- mixedsort(f)
 
 ref_file <- lf_gimms[1]
 
@@ -200,34 +212,32 @@ if(processing_steps$tiling==TRUE){
   
   plot(r_ref)
   
-  ### generate overlapping tiles
-  x_overlap <- 0.25
-  y_overlap <- 0.25
-  
   ### store in the tile directory
   #undebug(generate_tiles_from_extent)
   
   #we want 20x20
-  x_ratio <- 360/20
-  y_ratio <- 180/20
+  x_ratio <- tile_ratio[1]
+  y_ratio <- tile_ratio[2]
   
-  test_tiles2_2_overlap50 <- generate_tiles_from_extent(r_ref,
-                                                        y_ratio=y_ratio,
-                                                        x_ratio=x_ratio,
-                                                        y_overlap=y_overlap,
-                                                        x_overlap=x_overlap,
-                                                        out_suffix=out_suffix,
-                                                        out_dir=NULL) #this does not work...
+  ### generate overlapping tiles
+  x_overlap <- tile_overlap[1]
+  y_overlap <- tile_overlap[2]
   
-  df_tiles <- test_tiles2_2_overlap50$df_tiles
+  #debug(generate_tiles_from_extent)
+  tiles_obj <- generate_tiles_from_extent(r_ref,
+                                          y_ratio=y_ratio,
+                                          x_ratio=x_ratio,
+                                          y_overlap=y_overlap,
+                                          x_overlap=x_overlap,
+                                          out_suffix=out_suffix,
+                                          out_dir=NULL) #this does not work...
   
-  
-  
+  df_tiles <- tiles_obj$df_tiles
   head(df_tiles)
   dim(df_tiles) #too many tiles: 288
   
   plot(r_ref)
-  plot(test_tiles2_2_overlap50$list_tiles[[89]],add=T)
+  #plot(test_tiles2_2_overlap50$list_tiles[[89]],add=T)
   
   #### Transform a data.frame object to a sf object using coordinates x and y
   centroids_tiles <- st_as_sf(df_tiles,
@@ -242,6 +252,28 @@ if(processing_steps$tiling==TRUE){
   st_write(centroids_tiles,
            dsn=out_centroids_filename)
   
+  tiles_combined_spdf <- do.call(rbind,
+                                 test_tiles2_2_overlap50$list_tiles)
+
+  tiles_combined_spdf <- do.call(rbind,
+                                 tiles_obj$list_tiles)
+  
+  plot(tiles_combined_spdf)
+  tiles_combined_sf <- as(tiles_combined_spdf,"sf") #transforming spdf to sf object
+  st_crs(tiles_combined_sf) <- proj4string(r_ref)
+  
+  tiles_combined_sf$ID <- 1:nrow(tiles_combined_sf)
+  
+  #tiles_all <- join(tiles_combined_sf,df_tiles)
+  tiles_combined_sf <- merge(tiles_combined_sf,df_tiles,by="ID")
+  #View(tiles_combined_sf)
+
+  out_tiles_filename <- file.path(out_dir,"tiles_combined.shp")
+  st_write(tiles_combined_sf,
+           dsn=out_tiles_filename)
+  
+  ############# This part should be a function: select only the tiles that are within this area:
+  
   #Select tiles matching the areas of interest and with specific content:
   #Kenya<-getData("GADM", country="KE", level=0)
   KZ_spdf <-getData("GADM", country="KZ", level=0)
@@ -250,16 +282,7 @@ if(processing_steps$tiling==TRUE){
   plot(KZ_sf$geometry,add=T,border="blue")
   #Kenya1<-getData("GADM", country="KE", level=1)
   
-  tiles_combined_spdf <- do.call(rbind,test_tiles2_2_overlap50$list_tiles)
-  plot(tiles_combined_spdf)
-  tiles_combined_sf <- as(tiles_combined_spdf,"sf") #transforming spdf to sf object
   st_crs(KZ_sf)
-  st_crs(tiles_combined_sf) <- proj4string(r_ref)
-  
-  tiles_combined_sf$ID <- 1:nrow(tiles_combined_sf)
-  #tiles_all <- join(tiles_combined_sf,df_tiles)
-  tiles_combined_sf <- merge(tiles_combined_sf,df_tiles,by="ID")
-  #View(tiles_combined_sf)
   
   selected_poly_ID <- st_intersects(KZ_sf,tiles_combined_sf)
   selected_poly_ID <- unlist(selected_poly_ID)
@@ -280,12 +303,10 @@ if(processing_steps$tiling==TRUE){
   st_write(tiles_reg_sf,
            dsn=out_tiles_filename)
   
+  ##### end of selected file
+  
 }
 
-test <-getData("GADM",country="*", level=0)
-codes_countries <- ccodes()
-test <- getData("GDAM",codes_countries$ISO3,level=0)
-codes_countries$ISO3
 
 #########################################
 ########### PART 4: Analysis of spatial variability ###########
