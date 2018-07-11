@@ -254,7 +254,7 @@ generate_lag_data_time_fun <- function(tile_index,grid_filename,r,multiband=T,fi
               options=c("COMPRESS=LZW"))
   
   #generate filters for 10 lags: quick solution
-  browser()
+  #browser()
   
   list_filters<-lapply(1:10,
                        FUN=autocor_filter_fun,
@@ -273,6 +273,8 @@ generate_lag_data_time_fun <- function(tile_index,grid_filename,r,multiband=T,fi
   nlayers(r_tile) 
   
   strsplit(names(r),split="[.]")
+  
+  browser()
   
   #debug(local_moran_multiple_fun)
   r_test <- local_moran_multiple_fun(1,list_param=list_param_moran)
