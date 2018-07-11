@@ -55,7 +55,7 @@ script_path <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scri
 
 raster_processing_functions <- "GIMMS_processing_functions_07102018.R" #Functions used to mosaic predicted tiles
 generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Functions used to mosaic predicted tiles
-lag_processing_functions <- "lag_processing_functions_07112018.R"
+lag_processing_functions <- "lag_processing_functions_07122018b.R"
 get_study_region_functions <- "get_study_region_data_07122018.R"
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
@@ -94,7 +94,10 @@ tile_ratio <- c(360/20,180/20) # in the order for x and y
 tile_overlap <- c(0.25,0.25) # in the order for x and y
 #ARGS 13
 multiband <- TRUE
+#ARGS 14
+max_lag <- 10 #maximum lag to consider
 
+#ARGS 15
 processing_steps <- list(download=FALSE,
                          import=FALSE,
                          tiling=TRUE)
@@ -331,6 +334,20 @@ if(processing_steps$tiling==TRUE){
 tile_index <- 3 #This is tile grid 65
 lf_gimms <- mixedsort(list.files(pattern=file_format,path=in_dir,full.names=T))
 
+#if(is.null(out_dir)){
+#  out_dir <- in_dir #output will be created in the input dir
+  
+#}
+#out_dir <- in_dir #output will be created in the input dir
+
+out_suffix_s <- out_suffix #can modify name of output suffix
+if(create_out_dir_param==TRUE){
+  out_dir <- create_dir_fun(out_dir,out_suffix)
+  setwd(out_dir)
+}else{
+  setwd(out_dir) #use previoulsy defined directory
+}
+
 #ref_file <- stack(lf_gimms[1]
 
 debug(generate_lag_data_time_fun)
@@ -338,11 +355,13 @@ debug(generate_lag_data_time_fun)
 test <- generate_lag_data_time_fun(tile_index=tile_index,
                                    grid_filename=out_tiles_filename,
                                    r=lf_gimms,
+                                   max_lag=max_lag,
                                    multiband=multiband,
                                    file_format=file_format,
                                    num_cores=4,
                                    out_dir=out_dir,
                                    out_suffix=out_suffix)
+
   
 #########################################
 ########### PART 5: Results: Examining lag information and variability ###########
