@@ -4,7 +4,7 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 07/10/2018
+## DATE MODIFIED: 07/12/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -55,10 +55,12 @@ script_path <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scri
 
 raster_processing_functions <- "GIMMS_processing_functions_07102018.R" #Functions used to mosaic predicted tiles
 generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Functions used to mosaic predicted tiles
-lag_processing_functions <- "lag_processing_functions_07102018.R"
+lag_processing_functions <- "lag_processing_functions_07112018.R"
+get_study_region_functions <- "get_study_region_data_07122018.R"
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
 source(file.path(script_path,lag_processing_functions))
+source(file.path(script_path,get_study_region_functions))
 
 #########cd ###################################################################
 #####  Parameters and argument set up ########### 
@@ -235,28 +237,20 @@ if(processing_steps$tiling==TRUE){
                                           out_dir=NULL) #this does not work...
   
   df_tiles <- tiles_obj$df_tiles
-  head(df_tiles)
-  dim(df_tiles) #too many tiles: 288
-  
-  plot(r_ref)
-  #plot(test_tiles2_2_overlap50$list_tiles[[89]],add=T)
-  
+
   #### Transform a data.frame object to a sf object using coordinates x and y
   centroids_tiles <- st_as_sf(df_tiles,
                       coords = c('x_center', 'y_center'),
                       crs = proj4string(r_ref))
-  
-  #plot(centroids_tiles["ID"],add=T)
+  plot(r_ref)
   text(df_tiles$x_center,df_tiles$y_center,df_tiles$ID,cex=0.5)
   centroids_tiles$ID
   
   out_centroids_filename <- file.path(out_dir,"tiles_centroids.shp")
   st_write(centroids_tiles,
-           dsn=out_centroids_filename)
+           dsn=out_centroids_filename,
+           delete_dsn =T)
   
-  tiles_combined_spdf <- do.call(rbind,
-                                 test_tiles2_2_overlap50$list_tiles)
-
   tiles_combined_spdf <- do.call(rbind,
                                  tiles_obj$list_tiles)
   
@@ -272,38 +266,35 @@ if(processing_steps$tiling==TRUE){
 
   out_tiles_filename <- file.path(out_dir,"tiles_combined.shp")
   st_write(tiles_combined_sf,
-           dsn=out_tiles_filename)
+           dsn=out_tiles_filename,
+           delete_dsn = T)
   
   ############# This part should be a function: select only the tiles that are within this area:
   
-  #Select tiles matching the areas of interest and with specific content:
-  #Kenya<-getData("GADM", country="KE", level=0)
-  KZ_spdf <-getData("GADM", country="KZ", level=0)
-  KZ_sf <- as(KZ_spdf,"sf")
+  country_names <- c("Kazakhstan") #can have mulitple names as a vector here
+  #undebug(get_countries_outlines)
+  reg_outline_spdf <- get_countries_outlines(country_names,
+                                             out_dir=".",
+                                             out_suffix="kazakhstan")
+  reg_outline_sf <- as(reg_outline_spdf,"sf")
   
-  plot(KZ_sf$geometry,add=T,border="blue")
-  #Kenya1<-getData("GADM", country="KE", level=1)
-  
-  st_crs(KZ_sf)
-  
-  selected_poly_ID <- st_intersects(KZ_sf,tiles_combined_sf)
+  selected_poly_ID <- st_intersects(reg_outline_sf,tiles_combined_sf)
   selected_poly_ID <- unlist(selected_poly_ID)
   
   tiles_reg_sf <- filter(tiles_combined_sf,ID%in%selected_poly_ID)
-
+  
+  ## Let's drop 41 since the overlap is low
+  tiles_reg_sf <- filter(tiles_reg_sf,ID!=41)
   ### visualize selected polygons
   plot(r_ref)
   text(df_tiles$x_center,df_tiles$y_center,df_tiles$ID,cex=0.5)
-  plot(KZ_sf$geometry,add=T,border="blue")
+  plot(reg_outline_sf$geometry,add=T,border="blue")
   plot(tiles_reg_sf$geometry,border="red",add=T)
-  
-  ## Let's drop 41 since the overlap is low
-  
-  tiles_reg_sf <- filter(tiles_reg_sf,ID!=41)
   
   out_tiles_filename <- file.path(out_dir,"tiles_reg.shp")
   st_write(tiles_reg_sf,
-           dsn=out_tiles_filename)
+           dsn=out_tiles_filename,
+           delete_dsn = T)
   
   ##### end of selected file
   
@@ -344,15 +335,6 @@ lf_gimms <- mixedsort(list.files(pattern=file_format,path=in_dir,full.names=T))
 
 debug(generate_lag_data_time_fun)
 
-generate_lag_data_time_fun <- function(tile_index,
-                                       grid_filename,
-                                       r,
-                                       multiband=T,
-                                       file_format=".tif",
-                                       num_cores=1,
-                                       out_dir=NULL,
-                                       out_suffix=NULL)
-  
 test <- generate_lag_data_time_fun(tile_index=tile_index,
                                    grid_filename=out_tiles_filename,
                                    r=lf_gimms,
