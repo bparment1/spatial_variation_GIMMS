@@ -85,21 +85,23 @@ local_moran_multiple_fun<-function(i,list_param){
   #1) list_filters: list of filters with different lags in the image
   #2) r_stack: stack of raster image, only the selected layer is used...
   #3) multiband: if TRUE generate output as multiband file for each file in the stack
-  #3) NA_flag_val: if NULL, it is derived from input stack
-  #4) file_format: default is *.tif (if NULL)
-  #5) out_suffix: if NULL default, no suffix added.
-  #6) out_dir: if NULL default, use current dir
+  #4) NA_flag_val: if NULL, it is derived from input stack
+  #5) file_format: default is *.tif (if NULL)
+  #6) out_suffix: if NULL default, no suffix added.
+  #7) out_dir: if NULL default, use current dir
   
   #OUTPUTS:
-  #
+  #object as a list of items:local_moran_obj 
+  #1)r_local_moran
+  #2)out_raster_name
   
   ###### Begin #######
-  
   
   ### First, read in all parameters:
   
   list_filters <- list_param$list_filters
   list_r_stack <- list_param$r_stack
+  multiband <- list_param$multiband
   NA_flag_val <- list_param$NA_flag_val
   file_format <- list_param$file_format
   out_suffix <- list_param$out_suffix
@@ -113,11 +115,6 @@ local_moran_multiple_fun<-function(i,list_param){
   if(is.null(out_dir)){
     out_dir <- "."
   }
-  
-  #if(multiband==TRUE){
-  #  d
-  #}
-  
   
   ### Read in filters used to computer Moran's I
   
@@ -142,10 +139,6 @@ local_moran_multiple_fun<-function(i,list_param){
   #raster_name <- paste0(names(r),out_suffix,file_format)
   raster_name <- names(r)
   data_type_str <- dataType(r) #find the dataType, this should be a future input param
-  
-  if(is.null(NA_flag_val)){
-      NA_flag_val <- NAvalue(r)
-  }
     
   if(multiband==TRUE){
     if(out_suffix==""){
@@ -182,8 +175,8 @@ local_moran_multiple_fun<-function(i,list_param){
               datatype=data_type_str,
               options=c("COMPRESS=LZW"))
   
-  #out_raster_name <- 
   #### Prepare return object
+  
   local_moran_obj <- list(r_local_moran,out_raster_name)
   names(local_moran_obj) <- c("r_local_moran","out_raster_name")
   
@@ -266,6 +259,8 @@ generate_lag_data_time_fun <- function(tile_index,grid_filename,r,multiband=T,fi
   list_param_moran <- list(list_filters=list_filters,
                            r_stack=r_tile,
                            multiband=multiband,
+                           NA_flag_val=NULL,
+                           file_format=file_format,
                            out_suffix=NULL,
                            out_dir=NULL)
   
@@ -274,25 +269,27 @@ generate_lag_data_time_fun <- function(tile_index,grid_filename,r,multiband=T,fi
   
   strsplit(names(r),split="[.]")
   
-  browser()
+  #browser()
   
   #debug(local_moran_multiple_fun)
-  r_test <- local_moran_multiple_fun(1,list_param=list_param_moran)
+  #r_test <- local_moran_multiple_fun(1,list_param=list_param_moran)
   
   ### Change function to have option for multibands to reduce number of files outputs.
   
   #12:19
-  local_moran_I_list <-mclapply(1:nlayers(r_tile), 
+  local_moran_I_obj <-mclapply(1:nlayers(r_tile), 
                                 list_param=list_param_moran, 
                                 FUN=local_moran_multiple_fun,
                                 mc.preschedule=FALSE,
                                 mc.cores = num_cores) #This is the end bracket from mclapply(...) statement
   
+  #local_moran_I_obj[[24]]$out_raster_name
+  
   #r_local_moran_stack <- stack(unlist(local_moran_I_list))
   
   ### Add extraction of profiles in sample:
   
-  return(r_local_moran_stack)
+  return(local_moran_I_obj)
 }
 
 ######################### END OF SCRIPT ##############################
