@@ -276,7 +276,6 @@ generate_lag_data_time_fun <- function(tile_index,grid_filename,r,max_lag=10,mul
   
   #r_stack <- r_tile
   
-  out_suffix_str
   out_suffix_str <- paste0("tile_",tile_index,"_",out_suffix)
   
   list_param_moran <- list(list_filters=list_filters,

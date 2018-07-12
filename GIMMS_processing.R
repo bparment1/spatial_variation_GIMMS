@@ -331,7 +331,7 @@ if(processing_steps$tiling==TRUE){
 #out_dir
 #out_suffix
 
-tile_index <- 3 #This is tile grid 65
+tile_index <- 4 #This is tile grid 65
 lf_gimms <- mixedsort(list.files(pattern=file_format,path=in_dir,full.names=T))
 
 #if(is.null(out_dir)){
@@ -348,6 +348,8 @@ if(create_out_dir_param==TRUE){
   setwd(out_dir) #use previoulsy defined directory
 }
 
+tiles_sf <- st_read(out_tiles_filename)
+n_tiles <- nrow(tiles_sf)
 #ref_file <- stack(lf_gimms[1]
 
 debug(generate_lag_data_time_fun)
@@ -359,10 +361,34 @@ test <- generate_lag_data_time_fun(tile_index=tile_index,
                                    multiband=multiband,
                                    file_format=file_format,
                                    num_cores=4,
-                                   out_dir=out_dir,
+                                   out_dir=NULL,#if null a output dir name with tile_+index nunber is created
                                    out_suffix=out_suffix)
 
-  
+#undebug(generate_lag_data_time_fun)
+test <- lapply(1:n_tiles,
+               FUN=generate_lag_data_time_fun,
+               grid_filename=out_tiles_filename,
+               r=lf_gimms,
+               max_lag=max_lag,
+               multiband=multiband,
+               file_format=file_format,
+               num_cores=4,
+               out_dir=NULL,
+               out_suffix=out_suffix)
+
+lenght(test)
+
+test[[1]][[1]]
+test[[1]][[1]]$out_raster_name
+
+##### Now mosaic:
+
+#########################################
+########### PART 5: Mosaic outputs ###########
+
+#use R for now?
+
+
 #########################################
 ########### PART 5: Results: Examining lag information and variability ###########
 
