@@ -1,7 +1,7 @@
 ############### Spatial utility: General code for generating tiles/spatial subsets for AREA  ########## 
 ## 
 ## DATE CREATED: 06/08/2017
-## DATE MODIFIED: 06/27/2018
+## DATE MODIFIED: 07/10/2018
 ## AUTHORS: Benoit Parmentier 
 ## Version: 1
 ## PROJECT: General purpose
