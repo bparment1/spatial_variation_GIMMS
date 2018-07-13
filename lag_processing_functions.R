@@ -4,7 +4,7 @@
 ##
 ##
 ## DATE CREATED: 01/29/2018
-## DATE MODIFIED: 07/10/2018
+## DATE MODIFIED: 07/12/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -167,7 +167,7 @@ local_moran_multiple_fun<-function(i,list_param){
   
   #bylayer_val <- T
   writeRaster(r_local_moran,
-              filename=raster_name_tmp,
+              filename=file.path(out_dir,raster_name_tmp),
               bylayer=bylayer_val,
               suffix=out_suffix_s,
               overwrite=TRUE,
@@ -205,10 +205,30 @@ calculate_moranI_profile <- function(lf,nb_lag){
   return(list_moran_df)
 }
 
-generate_lag_data_time_fun <- function(tile_index,grid_filename,r,multiband=T,file_format=".tif",num_cores=1,out_dir=NULL,out_suffix=NULL){
+generate_lag_data_time_fun <- function(tile_index,grid_filename,r,max_lag=10,multiband=T,file_format=".tif",num_cores=1,out_dir=NULL,out_suffix=NULL){
+  # Function to generate lag images for given tile.
+  #
+  #INPUTS
+  #1)tile_index
+  #2)grid_filename
+  #3)r
+  #4)max_lag=10
+  #5)multiband=T
+  #6)file_format=".tif"
+  #7)num_cores=1
+  #8)out_dir=NULL
+  #9)out_suffix=NULL
+  
+  ######### Start script ###########
   
   if(!inherits(r,"Raster")){
     r <- stack(r)
+  }
+  
+  if(is.null(out_dir)){
+    out_dir_tile <- paste0("tile_",tile_index)
+    dir.create(out_dir_tile)
+    out_dir <- out_dir_tile
   }
   
   #grid_filename <- out_tiles_filename
@@ -249,20 +269,23 @@ generate_lag_data_time_fun <- function(tile_index,grid_filename,r,multiband=T,fi
   #generate filters for 10 lags: quick solution
   #browser()
   
-  list_filters<-lapply(1:10,
+  list_filters<-lapply(1:max_lag,
                        FUN=autocor_filter_fun,
                        f_type="queen") #generate 10 filters
   #moran_list <- lapply(list_filters,FUN=Moran,x=r)
   
   #r_stack <- r_tile
   
+  out_suffix_str
+  out_suffix_str <- paste0("tile_",tile_index,"_",out_suffix)
+  
   list_param_moran <- list(list_filters=list_filters,
                            r_stack=r_tile,
                            multiband=multiband,
                            NA_flag_val=NULL,
                            file_format=file_format,
-                           out_suffix=NULL,
-                           out_dir=NULL)
+                           out_suffix=out_suffix_str,
+                           out_dir=out_dir)
   
   #moran_r <-moran_multiple_fun(1,list_param=list_param_moran)
   nlayers(r_tile) 
