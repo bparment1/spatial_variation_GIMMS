@@ -1,4 +1,42 @@
+############### General utility function ########## 
+## Help in processing modis data for the workshop group.
+##
+##
+## DATE CREATED: 07/06/2018
+## DATE MODIFIED: 07/12/2018
+## AUTHORS: Benoit Parmentier  
+## Version: 1
+## PROJECT: General utility function
+## ISSUE: 
+## TO DO: - add for other entities (counties, metropolitan areas) etc.
+##
+## COMMIT: 
+##
+## Links to investigate:
 
+###################################################
+#
+
+###### Library used
+
+library(gtools)                              # loading some useful tools 
+library(sp)                                  # Spatial pacakge with class definition by Bivand et al.
+library(spdep)                               # Spatial pacakge with methods and spatial stat. by Bivand et al.
+library(raster)                              # raster functions and spatial utilities
+library(rgdal)                               # GDAL wrapper for R, spatial utilities
+library(gdata)                               # various tools with xls reading, cbindX
+library(parallel)                            # Parallelization of processes with multiple cores
+library(maptools)                            # Tools and functions for sp and other spatial objects e.g. spCbind
+library(maps)                                # Tools and data for spatial/geographic objects
+library(plyr)                                # Various tools including rbind.fill
+library(dplyr)                               # data wrangling
+library(rgeos)                               # Geometric, topologic library of functions
+library(gridExtra)                           # Combining lattice plots
+library(colorRamps)                          # Palette/color ramps for symbology
+library(ggplot2)                             # plotting functionality
+library(sf)
+
+###### Functions used in this script and sourced from other files
   
 
 get_countries_outlines <- function(country_names,out_dir,out_suffix){
@@ -36,46 +74,4 @@ get_countries_outlines <- function(country_names,out_dir,out_suffix){
 }
 
 
-country_names <- c("Kazakhstan") #can have mulitple names as a vector here
-#undebug(get_countries_outlines)
-reg_outline_spdf <- get_countries_outlines(country_names,
-                       out_dir=".",
-                       out_suffix="kazakhstan")
-#
-plot(reg_outline_spdf)  
-
-country_names <- c("Puerto Rico") #can have mulitple names as a vector here
-#undebug(get_countries_outlines)
-reg_outline_spdf <- get_countries_outlines(country_names,
-                                           out_dir=".",
-                                           out_suffix="puerto_rico")
-
-
-#Select tiles matching the areas of interest and with specific content:
-#Kenya<-getData("GADM", country="KE", level=0)
-KZ_spdf <-getData("GADM", country="KZ", level=0)
-KZ_sf <- as(KZ_spdf,"sf")
-
-plot(KZ_sf$geometry,add=T,border="blue")
-#Kenya1<-getData("GADM", country="KE", level=1)
-
-st_crs(KZ_sf)
-
-selected_poly_ID <- st_intersects(KZ_sf,tiles_combined_sf)
-selected_poly_ID <- unlist(selected_poly_ID)
-
-tiles_reg_sf <- filter(tiles_combined_sf,ID%in%selected_poly_ID)
-
-### visualize selected polygons
-plot(r_ref)
-text(df_tiles$x_center,df_tiles$y_center,df_tiles$ID,cex=0.5)
-plot(KZ_sf$geometry,add=T,border="blue")
-plot(tiles_reg_sf$geometry,border="red",add=T)
-
-## Let's drop 41 since the overlap is low
-
-tiles_reg_sf <- filter(tiles_reg_sf,ID!=41)
-
-out_tiles_filename <- file.path(out_dir,"tiles_reg.shp")
-st_write(tiles_reg_sf,
-         dsn=out_tiles_filename)
+##################################### End of script ######################
