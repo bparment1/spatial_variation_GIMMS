@@ -4,7 +4,7 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 07/12/2018
+## DATE MODIFIED: 07/17/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -57,10 +57,12 @@ raster_processing_functions <- "GIMMS_processing_functions_07102018.R" #Function
 generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Functions used to mosaic predicted tiles
 lag_processing_functions <- "lag_processing_functions_07122018b.R"
 get_study_region_functions <- "get_study_region_data_07122018.R"
+mosaicing_functions <- "weighted_mosaicing_functions_07172018.R"
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
 source(file.path(script_path,lag_processing_functions))
 source(file.path(script_path,get_study_region_functions))
+source(file.path(script_path,mosaicing_functions))
 
 #########cd ###################################################################
 #####  Parameters and argument set up ########### 
@@ -376,10 +378,22 @@ test <- lapply(1:n_tiles,
                out_dir=NULL,
                out_suffix=out_suffix)
 
-lenght(test)
+#test[[1]][[1]]
+#test[[1]][[1]]$out_raster_name
 
-test[[1]][[1]]
-test[[1]][[1]]$out_raster_name
+#> names(test[[1]][[1]])
+#[1] "r_local_moran"   "out_raster_name"
+#> (test[[1]][[1]]$out_raster_name)
+#[1] "ndvi3g_geo_v1_NDVI_1982_01_01__lag_1_10.tif"
+#> (test[[1]][[2]]$out_raster_name)
+#[1] "ndvi3g_geo_v1_NDVI_1982_01_15__lag_1_10.tif"
+
+length(test[[1]][[1]]) #24
+
+length(test) #8
+### Reorganize the files for mosaicing
+
+
 
 ##### Now mosaic:
 
@@ -390,71 +404,30 @@ test[[1]][[1]]$out_raster_name
 
 #### Mosaic tiles for the variable predicted and accuracy metrics, residuals surfaces or other options
 
-#browser()
-
-## Use the following values to run code from the shell:
-var <- "TMIN" # variable being interpolated #param 1, arg 1
-in_dir <- "/nobackupp6/aguzman4/climateLayers/tMinOut/" #PARAM2,arg 2
-#in_dir <- "/nobackupp6/aguzman4/climateLayers/tMinOut/" #PARAM2,arg 2
-
-#if region name is world then run full mosaic with data available for the corresponding year
-region_name <- "world"
-#region_name <- "reg1" #PARAM 3, arg 3 #reg4 South America, Africa reg5,Europe reg2, North America reg1, Asia reg3
-#out_suffix <- "reg1_1985" #PARAM 4, arg 4
-out_suffix <- "world_1985"
-out_suffix_str <- region_name #PARAM 4, CONST 3
-out_dir <- "/nobackupp8/bparmen1/climateLayers/tMinOut/world/mosaics" #PARAM 5,arg 5 use this location for now
-# #out_dir <- "/nobackupp8/bparmen1/climateLayers/out/world" #PARAM 5,arg 5 use this location for now
-# #out_dir <- "/nobackupp8/bparmen1/climateLayers/out/reg5/mosaicsAc" #PARAM 5,arg 5 use this location for now
-#out_dir <- "/nobackupp8/bparmen1/climateLayers/tMinOut/reg1/mosaics"
-create_out_dir_param <- TRUE #PARAM 6, arg 6
-year_predicted <- 1985 #PARAM 7, arg 7
-num_cores <- 6 #PARAM 8, arg 8
-max_mem = 1e+07 #param 9, arg 9
-mosaicing_method <- "use_edge_weights" #PARAM10, arg 10
-metric_name <- "rmse" # "mae", "r" for MAE, R etc.; can also be ns or nv? #PARAM 11, arg 11
-#metric_name <- "n"
-#metric_name <- "mae"
-
-day_start <- "19850101" #PARAM 12 arg 12
-day_end <- "19850102" #PARAM 13 arg 13
-#day_start <- "19920102" #PARAM 12 arg 12
-# #day_end <- "19920104" #PARAM 13 arg 13
-# #
-# # #infile_mask <- "/nobackupp8/bparmen1/NEX_data/regions_input_files/r_mask_LST_reg5.tif" #PARAM 14, arg 14
-#infile_mask <- "/nobackupp8/bparmen1/NEX_data/regions_input_files/r_mask_LST_reg1.tif" #PARAM 14, arg 14
-# infile_mask <- "/nobackupp8/bparmen1/NEX_data/regions_input_files/r_mask_LST_reg1_reg4.tif" #PARAM 14, arg 14
-# #infile_mask <- "/nobackupp8/bparmen1/NEX_data/regions_input_files/r_mask_LST_world.tif" #PARAM 14, arg 14
-infile_mask <- "/nobackupp8/bparmen1/NEX_data/regions_input_files/r_LST_mask_world_MOYDmax_Day_spline_month1.tif" #use this for the world mask for now, update later
-#
-df_assessment_files_name <- "None" #if global mosaic
-#df_assessment_files_name <- "/nobackupp6/aguzman4/climateLayers/tMinOut/reg1/assessment/output_reg1_1985/df_assessment_files_reg1_1985_reg1_1985.txt"  # data.frame with all files used in assessmnet, PARAM 15
-#df_assessment_files_name <- "/nobackupp6/aguzman4/climateLayers/out/reg5/assessment/output_reg5_1985/df_assessment_files_reg5_1985_reg5_1985.txt"
-algorithm <- "python" #PARAM 16 #if R use mosaic function for R, if python use modified gdalmerge script from Alberto Guzmann
-layers_option <- c("var_pred") #arg 17 ,param 17, options are:#res_training, res_testing,ac_training, ac_testing, var_pred
-#layers_option <- c("ac_training") #arg 17 ,param 17, options are:#res_training, res_testing,ac_training, ac_testing, var_pred
-#layers_option <- c("res_training") # #arg 17 ,param 17, options are:#res_training, res_testing,ac_training, ac_testing, var_pred
-#layers_option <- c("res_testing") #arg 17 ,param 17, options are:#res_training, res_testing,ac_training, ac_testing, var_pred
-#layers_option <- c("ac_testing") #arg 17 ,param 17, options are:#res_training, res_testing,ac_training, ac_testing, var_pred
-
-tmp_files <- FALSE #arg 18, param 18, keep temp files if TRUE
-data_type <- "Int16" #, param 19, use int32 for output layers mosaiced
-scaling <- 1 #, param 20, if null use 1, for world mosaic use 1, since it is already multiplied by 100
-#scaling <- 100 #, param 20, if null use 1
-# # #scaling <- 1 #use this if predicting n rather than other variables
-
-values_range <- "-10000,10000" #use 10,000 range for world mosaic
-#values_range <- "-100,100"
-
-# #this could be a list of folder or file with location of region mosaics to list...
-#infile_reg_mosaics <- "None"
 infile_reg_mosaics <- "/nobackupp8/bparmen1/NEX_data/regions_input_files/world_input_mosaics_tmin_var_04162017.csv"
 #infile_reg_mosaics is "None" when doing regional mosaics
-# 
-# ## NA_flag_val <- -32768 #should be here
-# ## values_range <- "0,32767" #this is for n variable
-# #path_assessment <- NOT USED "/nobackupp6/aguzman4/climateLayers/out/reg4/assessment/output_reg4_1991" #PARAM 14a, arg 14
 
+#### Constant
+
+file_format <- ".tif" #PARAM 25
+NA_value <- -32768 #PARAM 26
+NA_flag_val <- NA_value #PARAM 26
+#python script and gdal on NEX NASA:
+#mosaic_python <- "/nobackupp6/aguzman4/climateLayers/sharedCode/" #PARAM 29
+mosaic_python <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
+#python_bin <- "/nobackupp6/aguzman4/climateLayers/sharedModules2/bin" #PARAM 30
+python_bin <- "/usr/bin/" #python gdal bin, on Atlas NCEAS
+match_extent <- "FALSE" #PARAM 31 #try without matching!!!
+data_type <- NULL
+mosaicing_method <- "use_edge_weights" #PARAM10, arg 10
+algorithm <- "python" #PARAM 16 #if R use mosaic function for R, if python use modified gdalmerge script from Alberto Guzmann
+data_type <- "Int16" #, param 19, use int32 for output layers mosaiced
+tmp_files <- FALSE #arg 18, param 18, keep temp files if TRUE
+scaling <- 1 #, param 20, if null use 1, for world mosaic use 1, since it is already multiplied by 100
+values_range <- "-10000,10000" #use 10,000 range for
+#values_range <- "-100,100"
+
+day_to_mosaic <-
 #methods availbable:use_sine_weights,use_edge,use_linear_weights
 #only use edge method for now
 #loop to dates..., make this a function...
@@ -463,15 +436,42 @@ list_mosaic_obj <- vector("list",length=length(day_to_mosaic))
 
 if(processing_steps$mosaicing==TRUE){
     
+    
+   #in_dir_tiles_tmp <- file.path(in_dir, region_name)
+  
+   #lf_mosaic <- mclapply(1:length(day_to_mosaic),
+  #                      FUN=function(i){#check work for tmin too!
+  #                        #searchStr = paste(in_dir_tiles_tmp,"/*/",year_processed,"/gam_CAI_dailyTmax_predicted_",pred_mod_name,"*",day_to_mosaic[i],"*.tif",sep="")
+  #                        searchStr = paste(in_dir_tiles_tmp,"/*/",year_processed,"/gam_CAI_","*",pred_mod_name,"*",day_to_mosaic[i],"*.tif",sep="")
+  #                        Sys.glob(searchStr)},mc.preschedule=FALSE,mc.cores = num_cores)
+  
+   in_dir_tiles_tmp <- file.path(out_dir,paste0("tile_",1:n_tiles))
+   
+   pattern_str <- "lag_1_10.tif"
+   
+   lf <- lapply(in_dir_tiles_tmp,function(x){list.files(x,pattern=pattern_str,full.names = T)})
+
+   n_dates <- 24
+   n_tiles <- 8
+
+   lf_mosaic <- get_files_to_mosaic(lf,n_dates,n_tiles)
+   
+
+   ### Use mean average?
+  
+    ### Use distance from edge?
+  
     #mosaic_method <- "use_edge_weights" #this is distance from edge
-    mosaic_method <- mosaicing_method
-    out_suffix_tmp <- paste(mosaicing_method,y_var_name,day_to_mosaic[i],out_suffix,sep="_")
+    mosaicing_method
+    day_to_mosaic <- paste("test_",1:n_dates,sep="")
+    out_suffix_tmp <- paste(mosaicing_method,day_to_mosaic[i],out_suffix,sep="_")
     #debug(mosaicFiles)
     #can also loop through methods!!!
     #python_bin <- "/usr/bin/" #python gdal bin, on Atlas NCEAS
     #python_bin <- "/nobackupp6/aguzman4/climateLayers/sharedModules/bin" #on NEX
     #gdal_merge_sum_noDataTest.py
     
+    i <- 1
     mosaic_obj <- mosaicFiles(lf_mosaic[[i]],
                               mosaic_method="use_edge_weights",
                               num_cores=num_cores,
@@ -489,6 +489,7 @@ if(processing_steps$mosaicing==TRUE){
                               data_type=data_type,
                               scaling=scaling,
                               values_range=values_range)
+    
     #runs in 15-16 minutes for 3 dates and mosaicing of 28 tiles...
     list_mosaic_obj[[i]] <- mosaic_obj
 
