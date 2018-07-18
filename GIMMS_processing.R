@@ -4,7 +4,7 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 07/17/2018
+## DATE MODIFIED: 07/18/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -57,7 +57,7 @@ raster_processing_functions <- "GIMMS_processing_functions_07102018.R" #Function
 generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Functions used to mosaic predicted tiles
 lag_processing_functions <- "lag_processing_functions_07122018b.R"
 get_study_region_functions <- "get_study_region_data_07122018.R"
-mosaicing_functions <- "weighted_mosaicing_functions_07172018.R"
+mosaicing_functions <- "weighted_mosaicing_functions_07182018.R"
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
 source(file.path(script_path,lag_processing_functions))
@@ -424,7 +424,7 @@ algorithm <- "python" #PARAM 16 #if R use mosaic function for R, if python use m
 data_type <- "Int16" #, param 19, use int32 for output layers mosaiced
 tmp_files <- FALSE #arg 18, param 18, keep temp files if TRUE
 scaling <- 1 #, param 20, if null use 1, for world mosaic use 1, since it is already multiplied by 100
-values_range <- "-10000,10000" #use 10,000 range for
+values_range <- NULL #use 10,000 range for
 #values_range <- "-100,100"
 
 day_to_mosaic <-
@@ -434,6 +434,16 @@ day_to_mosaic <-
 #This is a loop but uses multicores when calling the mosaic function
 list_mosaic_obj <- vector("list",length=length(day_to_mosaic))
 
+#datatype: 16-bit signed integer
+#byte-order: big endian
+
+scale-factor: 10000
+min-valid: -10000
+max-valid: 10000
+mask-water: -10000
+mask-nodata: -5000
+
+r_mask_raster_name <- NULL
 if(processing_steps$mosaicing==TRUE){
     
     
@@ -471,11 +481,29 @@ if(processing_steps$mosaicing==TRUE){
     #python_bin <- "/nobackupp6/aguzman4/climateLayers/sharedModules/bin" #on NEX
     #gdal_merge_sum_noDataTest.py
     
+    #lf_mosaic,
+    #mosaic_method="unweighted",
+    #num_cores=1,
+    r_mask_raster_name<-NULL
+    #python_bin=NULL,
+    #mosaic_python="/nobackupp6/aguzman4/climateLayers/sharedCode/gdal_merge_sum_noDataTest.py",
+    #algorithm="R",
+    #match_extent=TRUE,
+    #df_points=NULL,
+    #NA_flag_val=-9999,
+    #file_format=".tif",
+    #out_suffix=NULL,
+    #ut_dir=NULL,
+    #tmp_files=FALSE,
+    #data_type="Float32",
+    #scaling=NULL,
+    #values_range=NULL
+      
     i <- 1
     mosaic_obj <- mosaicFiles(lf_mosaic[[i]],
                               mosaic_method="use_edge_weights",
                               num_cores=num_cores,
-                              r_mask_raster_name=infile_mask,
+                              r_mask_raster_name=r_mask_raster_name,
                               python_bin=python_bin,
                               mosaic_python=mosaic_python,
                               algorithm=algorithm,
