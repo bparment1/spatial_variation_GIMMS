@@ -3,7 +3,7 @@
 ##
 ##
 ## DATE CREATED: 07/06/2018
-## DATE MODIFIED: 07/12/2018
+## DATE MODIFIED: 07/25/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: General utility function
@@ -55,9 +55,9 @@ get_countries_outlines <- function(country_names,out_dir,out_suffix){
   #index_values <- which(codes_countries$NAME=="Puerto Rico")
   index_values <- which(codes_countries$NAME%in%country_names)
   
-  selected_countries_spdf <-getData("GADM", 
-                               country=codes_countries$ISO3[index_values]
-                               ,level=0)
+  selected_countries_spdf <- raster::getData("GADM", 
+                               country=codes_countries$ISO3[index_values],
+                               level=0)
   
   #plot(selected_countries_spdf)
   #class(selected_countries)
