@@ -4,7 +4,7 @@
 #Different options to explore mosaicing are tested. This script only contains functions.
 #AUTHOR: Benoit Parmentier 
 #CREATED ON: 04/14/2015  
-#MODIFIED ON: 06/07/2018            
+#MODIFIED ON: 07/25/2018            
 #Version: 2
 #PROJECT: Environmental Layers project     
 #COMMENTS:
@@ -194,8 +194,16 @@ mosaic_python_merge <- function(NA_flag_val,module_path,module_name,input_file,o
 
 create_weights_fun <- function(i, list_param){
   #This function generates weights from a point location on a raster layer.
+  #Weights rasters are defined using a distance from edges or other option.s
   #Note that the weights are normatlized on 0-1 scale using max and min values.
-  #Inputs:
+  #Once the weights are rescaled, these are multiplied with the original 
+  #input values from the raster to produce product weights by pixels.
+  #There are three options for the weights:
+  # - "use_sine_weights"
+  # -  "use_edge"
+  # - "use_linear_weights"
+  #
+  #INPUTS:
   #1)lf: list of raster files
   #2)df_points: reference points from which to compute distance
   #3)r_feature: reference features as raster image from which to compute distance from
@@ -206,8 +214,8 @@ create_weights_fun <- function(i, list_param){
   #             here e.g. dailyTmax and date!!
   #8)out_dir_str: output directory, default is NULL
   
-  #Outputs:
-  #raster list of weights and product of wegihts and inuts
+  #OUTPUTS:
+  #raster list of weights raster and product of weights raster and inputs
   #TODO: 
   # -use gdal proximity for large files and use_edge option
   # - add raster options
@@ -296,16 +304,24 @@ create_weights_fun <- function(i, list_param){
     r_init[1:n_row,n_col] <- 1
     #r_dist <- distance(r_init)
     #out_suffix_str
-    srcfile <- file.path(out_dir_str,paste("feature_target_",tile_no,"_",Sys.getpid(),out_suffix_str,file_format,sep=""))
+    
+    ### Save raster file using tile id and Process ID
+    srcfile <- file.path(out_dir_str,
+                         paste("feature_target_",tile_no,"_",Sys.getpid(),out_suffix_str,file_format,sep=""))
     
     writeRaster(r_init,filename=srcfile,overwrite=T)
     #Sys.getpid
     dstfile <- file.path(out_dir_str,paste("feature_target_edge_distance",tile_no,"_",Sys.getpid(),out_suffix_str,file_format,sep=""))
     n_values <- "1"
     
-    cmd_str <- paste("gdal_proximity.py", srcfile, dstfile,"-values",n_values,sep=" ")
+    ### Generate distance from edge:
+    cmd_str <- paste("gdal_proximity.py", 
+                     srcfile, 
+                     dstfile,
+                     "-values",n_values,sep=" ")
     system(cmd_str)
-    r_dist<- raster(dstfile)
+    
+    r_dist<- raster(dstfile) #read in the image created
     min_val <- cellStats(r_dist,min) 
     max_val <- cellStats(r_dist,max)
     r <- abs(r_dist - min_val)/ (max_val - min_val) #no need to inverse...
@@ -318,15 +334,24 @@ create_weights_fun <- function(i, list_param){
     max_val <- cellStats(r_dist,max)
     r <- abs(r_dist - max_val)/ (max_val - min_val)
   }
+  
+  ####### Now save layers for weights and prod weights
   #browser()
   extension_str <- extension(lf[i])
   raster_name_tmp <- gsub(extension_str,"",basename(lf[i]))
   raster_name <- file.path(out_dir_str,paste(raster_name_tmp,"_",method,"_weights_",out_suffix_str,file_format,sep=""))
-  writeRaster(r, NAflag=NA_flag_val,filename=raster_name,overwrite=TRUE)  
+  writeRaster(r, #write out the distance image
+              NAflag=NA_flag_val,
+              filename=raster_name,
+              overwrite=TRUE)  
   
-  r_var_prod <- r_in*r
+  ### Product weights computation
+  r_var_prod <- r_in*r #this may be slow? could you GDAL instead
   raster_name_prod <- file.path(out_dir_str, paste(raster_name_tmp,"_",method,"_prod_weights_",out_suffix_str,file_format,sep=""))
-  writeRaster(r_var_prod, NAflag=NA_flag_val,filename=raster_name_prod,overwrite=TRUE)  
+  writeRaster(r_var_prod, 
+              NAflag=NA_flag_val,
+              filename=raster_name_prod,
+              overwrite=TRUE)  
   
   weights_obj <- list(raster_name,raster_name_prod)
   names(weights_obj) <- c("r_weights","r_weights_prod")
@@ -468,6 +493,7 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
   out_suffix_str_tmp <- paste0(out_suffix,"_tmp")
   #}
   
+  ### Maybe look at the data type format of input layers to mosaic
   #if(data_type==NULL){
   #  data_type <- "Int16" #should be a parameter!!
   #}else{
@@ -484,13 +510,8 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
   lf_r_weights <- vector("list",length=length(lf_mosaic))
   
   rasterOptions(tmpdir=out_dir) #trying to control temporary files  written by the raster package
-  #bparmen1@pfe22:/tmp/R_raster_bparmen1> rm -r ./*
-  #rm: remove regular file `./raster_tmp_2017-02-14_141924_49920_08821.gri'? y
-  #rm: remove regular file `./raster_tmp_2017-02-19_134558_60103_03411.grd'? ^C
-  #can remove "raster_tmp_*, later on!
-  
+
   #lf <- unlist(lf)
-  
   
   ###############
   ### PART 2: prepare weights using tile rasters ############
@@ -562,8 +583,7 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
   
   browser()
   if(mosaic_method=="use_edge_weights"){
-    #this took 5 minutes for 28 tiles for reg4, South America,  4*28
-    
+
     method <- "use_edge"
     df_points <- NULL
     r_feature <- NULL
@@ -662,35 +682,40 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
         list_weights_prod_m <- list_weights_prod 
       }
       
-      #The file to do the merge is /nobackupp6/aguzman4/climateLayers/sharedCode/gdal_merge_sum.py. Sample call below.
-      #python /nobackupp6/aguzman4/climateLayers/sharedCode/gdal_merge_sum.py --config GDAL_CACHEMAX=1500 --overwrite=TRUE -o  outputname.tif --optfile input.txt
-      #lf_day_to_mosaic <- list_weights_m
-      
       #pattern_str <- paste("*.","predicted_mod1",".*.",day_to_mosaic[i],".*.tif",sep="")
       #lf_day_to_mosaic <- lapply(1:length(unlist(in_dir_mosaics)),FUN=function(k){list.files(path=unlist(in_dir_mosaics)[k],pattern=pattern_str,full.names=T,recursive=T)}) 
       #lf_day_to_mosaic <- unlist(lf_day_to_mosaic)
       #write.table(lf_day_to_mosaic,file=file.path(out_dir,paste("list_to_mosaics_",day_to_mosaic[i],".txt",sep="")))
       #filename_list_mosaics <- file.path(out_dir,paste("list_to_mosaics_",day_to_mosaic[i],".txt",sep=""))
       
-      filename_list_mosaics_weights_m <- file.path(out_dir_str,paste("list_to_mosaics_","weights_",mosaic_method,"_",out_suffix_str_tmp,".txt",sep=""))
-      filename_list_mosaics_prod_weights_m <- file.path(out_dir_str,paste("list_to_mosaics_","prod_weights_",mosaic_method,"_",out_suffix_str_tmp,".txt",sep=""))
+      filename_list_mosaics_weights_m <- file.path(out_dir_str,
+                                                   paste("list_to_mosaics_","weights_",mosaic_method,"_",out_suffix_str_tmp,".txt",sep=""))
+      filename_list_mosaics_prod_weights_m <- file.path(out_dir_str,
+                                                        paste("list_to_mosaics_","prod_weights_",mosaic_method,"_",out_suffix_str_tmp,".txt",sep=""))
       
       #writeLines(unlist(list_weights_m),con=filename_list_mosaics_weights_m) #weights files to mosaic 
       #writeLines(unlist(list_weights_prod_m),con=filename_list_mosaics_prod_weights_m) #prod weights files to mosaic
       
-      writeLines(unlist(list_weights_m),con=filename_list_mosaics_weights_m) #weights files to mosaic 
-      writeLines(unlist(list_weights_prod_m),con=filename_list_mosaics_prod_weights_m) #prod weights files to mosaic
+      #writeLines(unlist(list_weights_m),
+      #           con=filename_list_mosaics_weights_m) #weights files to mosaic 
+      write.table(as.data.frame(unlist(list_weights_m)),
+                   file=filename_list_mosaics_weights_m,
+                   sep=" ",
+                   col.names=F,
+                  row.names=F)
+      
+      #writeLines(unlist(list_weights_prod_m),con=filename_list_mosaics_prod_weights_m) #prod weights files to mosaic
+      
+      write.table(as.data.frame(unlist(list_weights_prod_m)),
+                  file=filename_list_mosaics_prod_weights_m,
+                  sep=" ",
+                  col.names=F,
+                  row.names=F)
       
       #out_mosaic_name_weights_m <- r_weights_sum_raster_name <- file.path(out_dir,paste("r_weights_sum_m_",mosaic_method,"_weighted_mean_",out_suffix,".tif",sep=""))
       #out_mosaic_name_prod_weights_m <- r_weights_sum_raster_name <- file.path(out_dir,paste("r_prod_weights_sum_m_",mosaic_method,"_weighted_mean_",out_suffix,".tif",sep=""))
       out_mosaic_name_weights_m  <- file.path(out_dir_str,paste("r_weights_sum_m_",mosaic_method,"_weighted_mean_",out_suffix_str_tmp,".tif",sep=""))
       out_mosaic_name_prod_weights_m <- file.path(out_dir_str,paste("r_prod_weights_sum_m_",mosaic_method,"_weighted_mean_",out_suffix_str_tmp,".tif",sep=""))
-      
-      #mod_str <- "mod1" #use mod2 which corresponds to model with LST and elev
-      #out_mosaic_name <- paste(region,"_mosaics_",mod_str,"_",tile_size,"_",day_to_mosaic[i],"_",out_prefix,".tif",sep="")
-      
-      ## Mosaic sum weights...
-      #input_file <- filename_list_mosaics_weights_m
       
       module_path <- mosaic_python #this should be a parameter for the function...
       #browser()
@@ -715,6 +740,7 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
       }
       #cmd_mosaic_gam_CAI_dailyTmax_19840101_reg1_1984.txt
       #python /nobackupp6/aguzman4/climateLayers/sharedCode//gdal_merge_sum.py --config GDAL_CACHEMAX=1500 --overwrite=TRUE -o /nobackupp8/bparmen1/climateLayers/out
+      #debug(mosaic_python_merge)
       mosaic_weights_obj <- mosaic_python_merge(NA_flag_val=NA_flag_val,
                                                 module_path=mosaic_python,
                                                 module_name="gdal_merge_sum.py",
