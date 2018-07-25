@@ -4,7 +4,7 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 07/18/2018
+## DATE MODIFIED: 07/25/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -53,11 +53,11 @@ library(sf)
 #Benoit setup
 script_path <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
 
-raster_processing_functions <- "GIMMS_processing_functions_07102018.R" #Functions used to mosaic predicted tiles
+raster_processing_functions <- "GIMMS_processing_functions_07252018.R" #Functions used to mosaic predicted tiles
 generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Functions used to mosaic predicted tiles
 lag_processing_functions <- "lag_processing_functions_07122018b.R"
-get_study_region_functions <- "get_study_region_data_07122018.R"
-mosaicing_functions <- "weighted_mosaicing_functions_07182018.R"
+get_study_region_functions <- "get_study_region_data_07252018.R"
+mosaicing_functions <- "weighted_mosaicing_functions_07252018.R"
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
 source(file.path(script_path,lag_processing_functions))
@@ -81,7 +81,7 @@ scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD
 #ARGS 6
 create_out_dir_param=TRUE #create a new ouput dir if TRUE
 #ARGS 7
-out_suffix <-"GIMMS_processing_07102018" #output suffix for the files and ouptut folder
+out_suffix <-"GIMMS_processing_07252018" #output suffix for the files and ouptut folder
 #ARGS 8
 num_cores <- 2 # number of cores
 #ARGS 9
@@ -131,8 +131,6 @@ if(create_out_dir_param==TRUE){
 ### PART 1: DOWNLOAD DATA #######
 
 #Will be a function
-
-
 ## Make this a function later on!!!
 date_param <- unlist(strsplit(date_param,";"))
 
@@ -336,25 +334,11 @@ if(processing_steps$tiling==TRUE){
 tile_index <- 4 #This is tile grid 65
 lf_gimms <- mixedsort(list.files(pattern=file_format,path=in_dir,full.names=T))
 
-#if(is.null(out_dir)){
-#  out_dir <- in_dir #output will be created in the input dir
-  
-#}
-#out_dir <- in_dir #output will be created in the input dir
-
-out_suffix_s <- out_suffix #can modify name of output suffix
-if(create_out_dir_param==TRUE){
-  out_dir <- create_dir_fun(out_dir,out_suffix)
-  setwd(out_dir)
-}else{
-  setwd(out_dir) #use previoulsy defined directory
-}
-
 tiles_sf <- st_read(out_tiles_filename)
 n_tiles <- nrow(tiles_sf)
 #ref_file <- stack(lf_gimms[1]
 
-debug(generate_lag_data_time_fun)
+#debug(generate_lag_data_time_fun)
 
 test <- generate_lag_data_time_fun(tile_index=tile_index,
                                    grid_filename=out_tiles_filename,
@@ -368,6 +352,17 @@ test <- generate_lag_data_time_fun(tile_index=tile_index,
 
 #undebug(generate_lag_data_time_fun)
 test <- lapply(1:n_tiles,
+               FUN=generate_lag_data_time_fun,
+               grid_filename=out_tiles_filename,
+               r=lf_gimms,
+               max_lag=max_lag,
+               multiband=multiband,
+               file_format=file_format,
+               num_cores=4,
+               out_dir=NULL,
+               out_suffix=out_suffix)
+
+test <- mclapply(1:n_tiles,
                FUN=generate_lag_data_time_fun,
                grid_filename=out_tiles_filename,
                r=lf_gimms,
@@ -427,7 +422,7 @@ scaling <- 1 #, param 20, if null use 1, for world mosaic use 1, since it is alr
 values_range <- NULL #use 10,000 range for
 #values_range <- "-100,100"
 
-day_to_mosaic <-
+#day_to_mosaic <-
 #methods availbable:use_sine_weights,use_edge,use_linear_weights
 #only use edge method for now
 #loop to dates..., make this a function...
@@ -444,10 +439,10 @@ mask-water: -10000
 mask-nodata: -5000
 
 r_mask_raster_name <- NULL
+
 if(processing_steps$mosaicing==TRUE){
-    
-    
-   #in_dir_tiles_tmp <- file.path(in_dir, region_name)
+  
+  #in_dir_tiles_tmp <- file.path(in_dir, region_name)
   
    #lf_mosaic <- mclapply(1:length(day_to_mosaic),
   #                      FUN=function(i){#check work for tmin too!
@@ -455,72 +450,76 @@ if(processing_steps$mosaicing==TRUE){
   #                        searchStr = paste(in_dir_tiles_tmp,"/*/",year_processed,"/gam_CAI_","*",pred_mod_name,"*",day_to_mosaic[i],"*.tif",sep="")
   #                        Sys.glob(searchStr)},mc.preschedule=FALSE,mc.cores = num_cores)
   
-   in_dir_tiles_tmp <- file.path(out_dir,paste0("tile_",1:n_tiles))
-   
-   pattern_str <- "lag_1_10.tif"
-   
-   lf <- lapply(in_dir_tiles_tmp,function(x){list.files(x,pattern=pattern_str,full.names = T)})
-
-   n_dates <- 24
-   n_tiles <- 8
-
-   lf_mosaic <- get_files_to_mosaic(lf,n_dates,n_tiles)
-   
-
-   ### Use mean average?
+  # list output tiles directories
+  in_dir_tiles_tmp <- file.path(out_dir,paste0("tile_",1:n_tiles))
   
-    ### Use distance from edge?
+  pattern_str <- "lag_1_10.tif"
+  ## get list of files for the mosaicing:
+  lf <- lapply(in_dir_tiles_tmp,
+               function(x){list.files(x,pattern=pattern_str,full.names = T)})
   
-    #mosaic_method <- "use_edge_weights" #this is distance from edge
-    mosaicing_method
-    day_to_mosaic <- paste("test_",1:n_dates,sep="")
-    out_suffix_tmp <- paste(mosaicing_method,day_to_mosaic[i],out_suffix,sep="_")
-    #debug(mosaicFiles)
-    #can also loop through methods!!!
-    #python_bin <- "/usr/bin/" #python gdal bin, on Atlas NCEAS
-    #python_bin <- "/nobackupp6/aguzman4/climateLayers/sharedModules/bin" #on NEX
-    #gdal_merge_sum_noDataTest.py
-    
-    #lf_mosaic,
-    #mosaic_method="unweighted",
-    #num_cores=1,
-    r_mask_raster_name<-NULL
-    #python_bin=NULL,
-    #mosaic_python="/nobackupp6/aguzman4/climateLayers/sharedCode/gdal_merge_sum_noDataTest.py",
-    #algorithm="R",
-    #match_extent=TRUE,
-    #df_points=NULL,
-    #NA_flag_val=-9999,
-    #file_format=".tif",
-    #out_suffix=NULL,
-    #ut_dir=NULL,
-    #tmp_files=FALSE,
-    #data_type="Float32",
-    #scaling=NULL,
-    #values_range=NULL
-      
-    i <- 1
-    mosaic_obj <- mosaicFiles(lf_mosaic[[i]],
-                              mosaic_method="use_edge_weights",
-                              num_cores=num_cores,
-                              r_mask_raster_name=r_mask_raster_name,
-                              python_bin=python_bin,
-                              mosaic_python=mosaic_python,
-                              algorithm=algorithm,
-                              match_extent=match_extent,
-                              df_points=NULL,
-                              NA_flag=NA_flag_val,
-                              file_format=file_format,
-                              out_suffix=out_suffix_tmp,
-                              out_dir=out_dir,
-                              tmp_files=tmp_files,
-                              data_type=data_type,
-                              scaling=scaling,
-                              values_range=values_range)
-    
-    #runs in 15-16 minutes for 3 dates and mosaicing of 28 tiles...
-    list_mosaic_obj[[i]] <- mosaic_obj
-
+  #n_dates <- 24
+  n_dates <- length(lf[[1]])
+  n_tiles <- length(in_dir_tiles_tmp)
+  ## reorganize files for mosaicing:
+  lf_mosaic <- get_files_to_mosaic(lf,n_dates,n_tiles)
+  
+  ### Use mean average?
+  
+  ### Use distance from edge?
+  
+  #mosaic_method <- "use_edge_weights" #this is distance from edge
+  mosaicing_method
+  day_to_mosaic <- paste("test_",1:n_dates,sep="")
+  out_suffix_tmp <- paste(mosaicing_method,day_to_mosaic[i],out_suffix,sep="_")
+  #debug(mosaicFiles)
+  #can also loop through methods!!!
+  #python_bin <- "/usr/bin/" #python gdal bin, on Atlas NCEAS
+  #python_bin <- "/nobackupp6/aguzman4/climateLayers/sharedModules/bin" #on NEX
+  #gdal_merge_sum_noDataTest.py
+  
+  #lf_mosaic,
+  #mosaic_method="unweighted",
+  #num_cores=1,
+  r_mask_raster_name<-NULL
+  #python_bin=NULL,
+  #mosaic_python="/nobackupp6/aguzman4/climateLayers/sharedCode/gdal_merge_sum_noDataTest.py",
+  #algorithm="R",
+  #match_extent=TRUE,
+  #df_points=NULL,
+  #NA_flag_val=-9999,
+  #file_format=".tif",
+  #out_suffix=NULL,
+  #ut_dir=NULL,
+  #tmp_files=FALSE,
+  #data_type="Float32",
+  #scaling=NULL,
+  #values_range=NULL
+  
+  i <- 1
+  debug(mosaicFiles)
+  
+  mosaic_obj <- mosaicFiles(lf_mosaic[[i]],
+                            mosaic_method="use_edge_weights",
+                            num_cores=num_cores,
+                            r_mask_raster_name=r_mask_raster_name,
+                            python_bin=python_bin,
+                            mosaic_python=mosaic_python,
+                            algorithm=algorithm,
+                            match_extent=match_extent,
+                            df_points=NULL,
+                            NA_flag=NA_flag_val,
+                            file_format=file_format,
+                            out_suffix=out_suffix_tmp,
+                            out_dir=out_dir,
+                            tmp_files=tmp_files,
+                            data_type=data_type,
+                            scaling=scaling,
+                            values_range=values_range)
+  
+  #runs in 15-16 minutes for 3 dates and mosaicing of 28 tiles...
+  list_mosaic_obj[[i]] <- mosaic_obj
+  
 }
 
 #########################################
