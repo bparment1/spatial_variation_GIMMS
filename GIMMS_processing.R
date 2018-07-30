@@ -340,27 +340,27 @@ n_tiles <- nrow(tiles_sf)
 
 #debug(generate_lag_data_time_fun)
 
-test <- generate_lag_data_time_fun(tile_index=tile_index,
-                                   grid_filename=out_tiles_filename,
-                                   r=lf_gimms,
-                                   max_lag=max_lag,
-                                   multiband=multiband,
-                                   file_format=file_format,
-                                   num_cores=4,
-                                   out_dir=NULL,#if null a output dir name with tile_+index nunber is created
-                                   out_suffix=out_suffix)
+#test <- generate_lag_data_time_fun(tile_index=tile_index,
+#                                   grid_filename=out_tiles_filename,
+#                                   r=lf_gimms,
+#                                   max_lag=max_lag,
+#                                   multiband=multiband,
+#                                   file_format=file_format,
+#                                  num_cores=4,
+#                                   out_dir=NULL,#if null a output dir name with tile_+index nunber is created
+#                                   out_suffix=out_suffix)
 
 #undebug(generate_lag_data_time_fun)
-test <- lapply(1:n_tiles,
-               FUN=generate_lag_data_time_fun,
-               grid_filename=out_tiles_filename,
-               r=lf_gimms,
-               max_lag=max_lag,
-               multiband=multiband,
-               file_format=file_format,
-               num_cores=4,
-               out_dir=NULL,
-               out_suffix=out_suffix)
+#test <- lapply(1:n_tiles,
+#               FUN=generate_lag_data_time_fun,
+#               grid_filename=out_tiles_filename,
+#               r=lf_gimms,
+#               max_lag=max_lag,
+#               multiband=multiband,
+#               file_format=file_format,
+#              num_cores=4,
+#               out_dir=NULL,
+#               out_suffix=out_suffix)
 
 test <- mclapply(1:n_tiles,
                FUN=generate_lag_data_time_fun,
@@ -432,11 +432,11 @@ list_mosaic_obj <- vector("list",length=length(day_to_mosaic))
 #datatype: 16-bit signed integer
 #byte-order: big endian
 
-scale-factor: 10000
-min-valid: -10000
-max-valid: 10000
-mask-water: -10000
-mask-nodata: -5000
+#scale-factor: 10000
+#min-valid: -10000
+#max-valid: 10000
+#mask-water: -10000
+#mask-nodata: -5000
 
 r_mask_raster_name <- NULL
 
@@ -453,7 +453,7 @@ if(processing_steps$mosaicing==TRUE){
   # list output tiles directories
   in_dir_tiles_tmp <- file.path(out_dir,paste0("tile_",1:n_tiles))
   
-  pattern_str <- "lag_1_10.tif"
+  pattern_str <- "lag_1_10.*.tif"
   ## get list of files for the mosaicing:
   lf <- lapply(in_dir_tiles_tmp,
                function(x){list.files(x,pattern=pattern_str,full.names = T)})
@@ -465,6 +465,33 @@ if(processing_steps$mosaicing==TRUE){
   lf_mosaic <- get_files_to_mosaic(lf,n_dates,n_tiles)
   
   ### Use mean average?
+  
+  #### If input is a multiband separate the band before mosaicing?
+  ### Yes create a temporary directory and stor the files by bands
+  ### regenerate list of files
+  ### run mosaicing 
+  ### regenerate 
+  
+  #Yann Chemin wrote:
+  #  > Hello,
+  #> 
+  #  > I would like to use GDAL (in Python) for doing something like this.
+  #...snip...
+  #> The idea is to create a new file from an already existing one-band
+  #> file, only thing is to have it multi-band.
+  #> 
+  #  > Maybe It is not the best way to start doing it...
+  
+  #Hello Yann,
+  
+  #no need to use gdal/python for this, you can do this with the
+  #gdal_merge.py tool that comes with gdal. Use the -separate option, and
+  #it will merge your single-band input files into a multiband output file.
+  #See http://gdal.org/gdal_merge.html for more info.
+  
+  
+  
+  
   
   ### Use distance from edge?
   
@@ -525,6 +552,12 @@ if(processing_steps$mosaicing==TRUE){
 #########################################
 ########### PART 5: Results: Examining lag information and variability ###########
 
+grid_sampling_raster <- function(x_sampling,y_sampling,r){
+  grid_sf<- st_make_grid(r,n=c(x_sampling,y_sampling))
+  <- st_centroid(grid_sf)
+  
+  return(grid_centroids)
+}
 plot(r_local_moran_stack,y=2)
 animate(r_local_moran_stack) ## Generate movie later on:
 
@@ -564,7 +597,7 @@ names(moran_df) <- c("moran_I","lag")
 plot(moran_df$moran_I ~moran_df$lag)
 #plot(moran_df$moran_I ~moran_df$lag,ylim=c(0,1))
 
-#prepare to automate the plotting of   all columns
+#prepare to automate the plotting   all columns
 #mydata<-moran_df
 #dd <- do.call(make.groups, mydata[,-ncol(mydata)]) 
 #dd$lag <- mydata$lag 
