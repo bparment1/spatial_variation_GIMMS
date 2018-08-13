@@ -4,7 +4,7 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 07/25/2018
+## DATE MODIFIED: 08/13/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -55,9 +55,9 @@ script_path <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scri
 
 raster_processing_functions <- "GIMMS_processing_functions_07252018.R" #Functions used to mosaic predicted tiles
 generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Functions used to mosaic predicted tiles
-lag_processing_functions <- "lag_processing_functions_07122018b.R"
+lag_processing_functions <- "lag_processing_functions_07302018.R"
 get_study_region_functions <- "get_study_region_data_07252018.R"
-mosaicing_functions <- "weighted_mosaicing_functions_07252018.R"
+mosaicing_functions <- "weighted_mosaicing_functions_08142018.R"
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
 source(file.path(script_path,lag_processing_functions))
@@ -81,7 +81,7 @@ scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD
 #ARGS 6
 create_out_dir_param=TRUE #create a new ouput dir if TRUE
 #ARGS 7
-out_suffix <-"GIMMS_processing_07252018" #output suffix for the files and ouptut folder
+out_suffix <-"GIMMS_processing_08142018" #output suffix for the files and ouptut folder
 #ARGS 8
 num_cores <- 2 # number of cores
 #ARGS 9
@@ -275,12 +275,14 @@ if(processing_steps$tiling==TRUE){
   ############# This part should be a function: select only the tiles that are within this area:
   
   country_names <- c("Kazakhstan") #can have mulitple names as a vector here
+  country_names <- c("Mongolia")
+  
   #undebug(get_countries_outlines)
   reg_outline_spdf <- get_countries_outlines(country_names,
                                              out_dir=".",
-                                             out_suffix="kazakhstan")
+                                             out_suffix=country_names)
   reg_outline_sf <- as(reg_outline_spdf,"sf")
-  
+  #plot(reg_outline_sf)
   selected_poly_ID <- st_intersects(reg_outline_sf,tiles_combined_sf)
   selected_poly_ID <- unlist(selected_poly_ID)
   
@@ -340,15 +342,15 @@ n_tiles <- nrow(tiles_sf)
 
 #debug(generate_lag_data_time_fun)
 
-#test <- generate_lag_data_time_fun(tile_index=tile_index,
-#                                   grid_filename=out_tiles_filename,
-#                                   r=lf_gimms,
-#                                   max_lag=max_lag,
-#                                   multiband=multiband,
-#                                   file_format=file_format,
-#                                  num_cores=4,
-#                                   out_dir=NULL,#if null a output dir name with tile_+index nunber is created
-#                                   out_suffix=out_suffix)
+test <- generate_lag_data_time_fun(tile_index=tile_index,
+                                   grid_filename=out_tiles_filename,
+                                   r=lf_gimms,
+                                   max_lag=max_lag,
+                                   multiband=multiband,
+                                   file_format=file_format,
+                                  num_cores=4,
+                                   out_dir=NULL,#if null a output dir name with tile_+index nunber is created
+                                   out_suffix=out_suffix)
 
 #undebug(generate_lag_data_time_fun)
 #test <- lapply(1:n_tiles,
@@ -389,7 +391,6 @@ length(test) #8
 ### Reorganize the files for mosaicing
 
 
-
 ##### Now mosaic:
 
 #########################################
@@ -399,14 +400,23 @@ length(test) #8
 
 #### Mosaic tiles for the variable predicted and accuracy metrics, residuals surfaces or other options
 
-infile_reg_mosaics <- "/nobackupp8/bparmen1/NEX_data/regions_input_files/world_input_mosaics_tmin_var_04162017.csv"
+#infile_reg_mosaics <- "/nobackupp8/bparmen1/NEX_data/regions_input_files/world_input_mosaics_tmin_var_04162017.csv"
 #infile_reg_mosaics is "None" when doing regional mosaics
 
 #### Constant
 
+r_test <- test[[1]][[1]]$r_local_moran
+plot(r_test)
+data_type_val <- dataType(r_test)
+r_test
+NAvalue(r_test)
+range(r_test)
+
 file_format <- ".tif" #PARAM 25
 NA_value <- -32768 #PARAM 26
 NA_flag_val <- NA_value #PARAM 26
+NA_flag_val <- -3.4e+38
+
 #python script and gdal on NEX NASA:
 #mosaic_python <- "/nobackupp6/aguzman4/climateLayers/sharedCode/" #PARAM 29
 mosaic_python <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
@@ -416,10 +426,30 @@ match_extent <- "FALSE" #PARAM 31 #try without matching!!!
 data_type <- NULL
 mosaicing_method <- "use_edge_weights" #PARAM10, arg 10
 algorithm <- "python" #PARAM 16 #if R use mosaic function for R, if python use modified gdalmerge script from Alberto Guzmann
-data_type <- "Int16" #, param 19, use int32 for output layers mosaiced
+
+### Generate a table later on
+#Datatype definition	minimum possible value	maximum possible value
+#LOG1S	FALSE (0)	TRUE (1)
+#INT1S	-127	127
+#INT1U	0	255
+#INT2S	-32,767	32,767
+#INT2U	0	65,534
+#INT4S	-2,147,483,647	2,147,483,647
+#INT4U	0	4,294,967,296
+#FLT4S	-3.4e+38	3.4e+38
+#FLT8S	-1.7e+308	1.7e+308
+
+if(data_type_val=="FLT4S"){
+  data_type <- "int32"
+}
+if(data_type_val=="INT2S"){
+ data_type <- "Int16" #, param 19, use int32 for output layers mosaiced
+}
+
 tmp_files <- FALSE #arg 18, param 18, keep temp files if TRUE
 scaling <- 1 #, param 20, if null use 1, for world mosaic use 1, since it is already multiplied by 100
 values_range <- NULL #use 10,000 range for
+#if values_range is null should use the value range from the product data type
 #values_range <- "-100,100"
 
 #day_to_mosaic <-
@@ -526,10 +556,25 @@ if(processing_steps$mosaicing==TRUE){
   i <- 1
   debug(mosaicFiles)
   
+  #if data is multiband
+  nlayers(r_test)
+  bylayer=F
+  out_suffix_tmp
+  
+  writeRaster(mosaiced_rast,
+              filename=file.path(out_dir,raster_name_tmp),
+              bylayer=bylayer_val,
+              suffix=suffix_str,
+              overwrite=TRUE,
+              NAflag=NA_flag_val,
+              datatype=data_type_str,
+              options=c("COMPRESS=LZW"))
+  
+  
   mosaic_obj <- mosaicFiles(lf_mosaic[[i]],
                             mosaic_method="use_edge_weights",
                             num_cores=num_cores,
-                            r_mask_raster_name=r_mask_raster_name,
+                            r_mask_raster_name=r_mask_raster_name, # can bin NULL
                             python_bin=python_bin,
                             mosaic_python=mosaic_python,
                             algorithm=algorithm,

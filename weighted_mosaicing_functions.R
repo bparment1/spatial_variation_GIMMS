@@ -4,7 +4,7 @@
 #Different options to explore mosaicing are tested. This script only contains functions.
 #AUTHOR: Benoit Parmentier 
 #CREATED ON: 04/14/2015  
-#MODIFIED ON: 07/25/2018            
+#MODIFIED ON: 08/14/2018            
 #Version: 2
 #PROJECT: Environmental Layers project     
 #COMMENTS:
@@ -58,7 +58,6 @@ library(xts)
 
 ##List all the functions in this script:
 
-#[1] "autoKrige_fun"                      
 #[2] "create_accuracy_metric_raster"     
 #[3] "create_accuracy_residuals_raster"   
 #[4] "create_weights_fun"                
