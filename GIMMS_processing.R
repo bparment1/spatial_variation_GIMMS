@@ -407,7 +407,7 @@ length(test) #8
 
 r_test <- test[[1]][[1]]$r_local_moran
 plot(r_test)
-data_type_val <- dataType(r_test)
+data_type_str <- unique(dataType(r_test))
 r_test
 NAvalue(r_test)
 range(r_test)
@@ -449,36 +449,10 @@ if(data_type_val=="INT2S"){
 tmp_files <- FALSE #arg 18, param 18, keep temp files if TRUE
 scaling <- 1 #, param 20, if null use 1, for world mosaic use 1, since it is already multiplied by 100
 values_range <- NULL #use 10,000 range for
-#if values_range is null should use the value range from the product data type
-#values_range <- "-100,100"
-
-#day_to_mosaic <-
-#methods availbable:use_sine_weights,use_edge,use_linear_weights
-#only use edge method for now
-#loop to dates..., make this a function...
-#This is a loop but uses multicores when calling the mosaic function
-list_mosaic_obj <- vector("list",length=length(day_to_mosaic))
-
-#datatype: 16-bit signed integer
-#byte-order: big endian
-
-#scale-factor: 10000
-#min-valid: -10000
-#max-valid: 10000
-#mask-water: -10000
-#mask-nodata: -5000
 
 r_mask_raster_name <- NULL
 
 if(processing_steps$mosaicing==TRUE){
-  
-  #in_dir_tiles_tmp <- file.path(in_dir, region_name)
-  
-   #lf_mosaic <- mclapply(1:length(day_to_mosaic),
-  #                      FUN=function(i){#check work for tmin too!
-  #                        #searchStr = paste(in_dir_tiles_tmp,"/*/",year_processed,"/gam_CAI_dailyTmax_predicted_",pred_mod_name,"*",day_to_mosaic[i],"*.tif",sep="")
-  #                        searchStr = paste(in_dir_tiles_tmp,"/*/",year_processed,"/gam_CAI_","*",pred_mod_name,"*",day_to_mosaic[i],"*.tif",sep="")
-  #                        Sys.glob(searchStr)},mc.preschedule=FALSE,mc.cores = num_cores)
   
   # list output tiles directories
   in_dir_tiles_tmp <- file.path(out_dir,paste0("tile_",1:n_tiles))
@@ -487,8 +461,6 @@ if(processing_steps$mosaicing==TRUE){
   ## get list of files for the mosaicing:
   lf <- lapply(in_dir_tiles_tmp,
                function(x){list.files(x,pattern=pattern_str,full.names = T)})
-  
-  #n_dates <- 24
   n_dates <- length(lf[[1]])
   n_tiles <- length(in_dir_tiles_tmp)
   ## reorganize files for mosaicing:
@@ -499,34 +471,7 @@ if(processing_steps$mosaicing==TRUE){
   #### If input is a multiband separate the band before mosaicing?
   ### Yes create a temporary directory and stor the files by bands
   ### regenerate list of files
-  ### run mosaicing 
-  ### regenerate 
-  
-  #Yann Chemin wrote:
-  #  > Hello,
-  #> 
-  #  > I would like to use GDAL (in Python) for doing something like this.
-  #...snip...
-  #> The idea is to create a new file from an already existing one-band
-  #> file, only thing is to have it multi-band.
-  #> 
-  #  > Maybe It is not the best way to start doing it...
-  
-  #Hello Yann,
-  
-  #no need to use gdal/python for this, you can do this with the
-  #gdal_merge.py tool that comes with gdal. Use the -separate option, and
-  #it will merge your single-band input files into a multiband output file.
-  #See http://gdal.org/gdal_merge.html for more info.
-  
-  
-  
-  
-  
-  ### Use distance from edge?
-  
-  #mosaic_method <- "use_edge_weights" #this is distance from edge
-  mosaicing_method
+  mosaic_method <- "use_edge_weights" #this is distance from edge
   day_to_mosaic <- paste("test_",1:n_dates,sep="")
   out_suffix_tmp <- paste(mosaicing_method,day_to_mosaic[i],out_suffix,sep="_")
   #debug(mosaicFiles)
@@ -556,12 +501,16 @@ if(processing_steps$mosaicing==TRUE){
   i <- 1
   debug(mosaicFiles)
   
+  split_multiband <- function(lf_in,out_suffix,out_dir) 
   #if data is multiband
   nlayers(r_test)
   bylayer=F
-  out_suffix_tmp
+  suffix_str <- paste0(1:10,"_",out_suffix_tmp)
   
-  writeRaster(mosaiced_rast,
+  bylayer_val <- T
+  raster_name_tmp <- "test.tif"
+  
+  lf_test <- writeRaster(r_test,
               filename=file.path(out_dir,raster_name_tmp),
               bylayer=bylayer_val,
               suffix=suffix_str,
