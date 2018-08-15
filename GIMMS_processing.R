@@ -499,47 +499,82 @@ if(processing_steps$mosaicing==TRUE){
   #values_range=NULL
   
   i <- 1
-  debug(mosaicFiles)
+  #debug(mosaicFiles)
+  split_multiband <- function(in_file,out_suffix_str,out_dir){
+    
+    ### Can also use gdal merge to split?
+    
+    r_in <- brick(in_file)
+    
+    #if data is multiband
+    n_layers <- nlayers(r_in)
+    #bylayer=F
+    suffix_str <- paste0(1:n_layers,"_",out_suffix_str)
+    
+    bylayer_val <- T
+    raster_name_tmp <- "test.tif"
+    
+    lf_test <- writeRaster(r_in,
+                           filename=file.path(out_dir,raster_name_tmp),
+                           bylayer=bylayer_val,
+                           suffix=suffix_str,
+                           overwrite=TRUE,
+                           NAflag=NA_flag_val,
+                           datatype=data_type_str,
+                           options=c("COMPRESS=LZW"))
+    
+    #
+    
+    return(lf_test)
+  } 
   
-  split_multiband <- function(lf_in,out_suffix,out_dir) 
-  #if data is multiband
-  nlayers(r_test)
-  bylayer=F
-  suffix_str <- paste0(1:10,"_",out_suffix_tmp)
-  
-  bylayer_val <- T
-  raster_name_tmp <- "test.tif"
-  
-  lf_test <- writeRaster(r_test,
-              filename=file.path(out_dir,raster_name_tmp),
-              bylayer=bylayer_val,
-              suffix=suffix_str,
-              overwrite=TRUE,
-              NAflag=NA_flag_val,
-              datatype=data_type_str,
-              options=c("COMPRESS=LZW"))
-  
-  
-  mosaic_obj <- mosaicFiles(lf_mosaic[[i]],
-                            mosaic_method="use_edge_weights",
-                            num_cores=num_cores,
-                            r_mask_raster_name=r_mask_raster_name, # can bin NULL
-                            python_bin=python_bin,
-                            mosaic_python=mosaic_python,
-                            algorithm=algorithm,
-                            match_extent=match_extent,
-                            df_points=NULL,
-                            NA_flag=NA_flag_val,
-                            file_format=file_format,
-                            out_suffix=out_suffix_tmp,
-                            out_dir=out_dir,
-                            tmp_files=tmp_files,
-                            data_type=data_type,
-                            scaling=scaling,
-                            values_range=values_range)
-  
-  #runs in 15-16 minutes for 3 dates and mosaicing of 28 tiles...
-  list_mosaic_obj[[i]] <- mosaic_obj
+  for(i in 1:length(lf_mosaic)){
+    
+    lf_in <- lf_mosaic[[i]]
+    out_dir_tmp <- paste0("bands_outputs_",i,"_tmp")
+    if(!dir.exists(out_dir_tmp)){
+      dir.create(out_dir_tmp)
+    }
+    
+    debug(split_multiband)
+    lf_multi <- split_multiband(lf_in[1],out_suffix,out_dir_tmp)
+    
+    lf_multi <- lapply(1:length(lf_in),
+                       FUN=split_multiband,
+                       out_suffix = out_suffix,
+                       out_dir = out_dir_tmp)
+      
+    ## better split files first and then run mclapply
+    ### now reorganize files:
+    
+    for(j in 1:length(lf_multi)){
+      
+      in_file <- lf_multi[[i]]
+      
+      mosaic_obj <- mosaicFiles(in_file,
+                                mosaic_method="use_edge_weights",
+                                num_cores=num_cores,
+                                r_mask_raster_name=r_mask_raster_name, # can bin NULL
+                                python_bin=python_bin,
+                                mosaic_python=mosaic_python,
+                                algorithm=algorithm,
+                                match_extent=match_extent,
+                                df_points=NULL,
+                                NA_flag=NA_flag_val,
+                                file_format=file_format,
+                                out_suffix=out_suffix_tmp,
+                                out_dir=out_dir,
+                                tmp_files=tmp_files,
+                                data_type=data_type,
+                                scaling=scaling,
+                                values_range=values_range)
+    }
+      
+      #runs in 15-16 minutes for 3 dates and mosaicing of 28 tiles...
+      list_mosaic_obj[[i]] <- mosaic_obj
+      
+  }
+    
   
 }
 
