@@ -4,7 +4,7 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 08/13/2018
+## DATE MODIFIED: 08/16/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -58,11 +58,13 @@ generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Funct
 lag_processing_functions <- "lag_processing_functions_07302018.R"
 get_study_region_functions <- "get_study_region_data_07252018.R"
 mosaicing_functions <- "weighted_mosaicing_functions_08142018.R"
+raster_processing_functions <- "raster_processing_functions_08162018.R"
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
 source(file.path(script_path,lag_processing_functions))
 source(file.path(script_path,get_study_region_functions))
 source(file.path(script_path,mosaicing_functions))
+source(file.path(script_path,raster_processing_functions))
 
 #########cd ###################################################################
 #####  Parameters and argument set up ########### 
@@ -500,56 +502,33 @@ if(processing_steps$mosaicing==TRUE){
   
   i <- 1
   #debug(mosaicFiles)
-  split_multiband <- function(in_file,out_suffix_str,out_dir){
-    
-    ### Can also use gdal merge to split?
-    
-    r_in <- brick(in_file)
-    
-    #if data is multiband
-    n_layers <- nlayers(r_in)
-    #bylayer=F
-    suffix_str <- paste0(1:n_layers,"_",out_suffix_str)
-    
-    bylayer_val <- T
-    raster_name_tmp <- "test.tif"
-    
-    lf_test <- writeRaster(r_in,
-                           filename=file.path(out_dir,raster_name_tmp),
-                           bylayer=bylayer_val,
-                           suffix=suffix_str,
-                           overwrite=TRUE,
-                           NAflag=NA_flag_val,
-                           datatype=data_type_str,
-                           options=c("COMPRESS=LZW"))
-    
-    #
-    
-    return(lf_test)
-  } 
   
+  ## For every date
   for(i in 1:length(lf_mosaic)){
     
     lf_in <- lf_mosaic[[i]]
-    out_dir_tmp <- paste0("bands_outputs_",i,"_tmp")
+    out_dir_tmp <- paste0("date_outputs_",i,"_tmp")
     if(!dir.exists(out_dir_tmp)){
       dir.create(out_dir_tmp)
     }
     
-    debug(split_multiband)
+    #debug(split_multiband)
     lf_multi <- split_multiband(lf_in[1],out_suffix,out_dir_tmp)
     
-    lf_multi <- lapply(1:length(lf_in),
+    lf_multi <- lapply(lf_in,
                        FUN=split_multiband,
-                       out_suffix = out_suffix,
+                       out_suffix = "",
                        out_dir = out_dir_tmp)
       
-    ## better split files first and then run mclapply
-    ### now reorganize files:
-    
-    for(j in 1:length(lf_multi)){
+    df_multiband <- as.data.frame(do.call(cbind,lf_multi))
+    names(df_multiband) <- paste0("tile_",1:n_tiles)
+
+    j <- 1         
+    ## for every band:
+    for(j in 1:nrow(df_multiband)){
       
-      in_file <- lf_multi[[i]]
+      in_file <- as.list(df_multiband[j,])
+      debug(mosaicFiles)
       
       mosaic_obj <- mosaicFiles(in_file,
                                 mosaic_method="use_edge_weights",
