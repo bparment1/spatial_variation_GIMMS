@@ -4,7 +4,7 @@
 ##
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 08/16/2018
+## DATE MODIFIED: 08/21/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -83,7 +83,7 @@ scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD
 #ARGS 6
 create_out_dir_param=TRUE #create a new ouput dir if TRUE
 #ARGS 7
-out_suffix <-"GIMMS_processing_08142018" #output suffix for the files and ouptut folder
+out_suffix <-"GIMMS_processing_08212018" #output suffix for the files and ouptut folder
 #ARGS 8
 num_cores <- 2 # number of cores
 #ARGS 9
@@ -431,15 +431,20 @@ algorithm <- "python" #PARAM 16 #if R use mosaic function for R, if python use m
 
 ### Generate a table later on
 #Datatype definition	minimum possible value	maximum possible value
-#LOG1S	FALSE (0)	TRUE (1)
-#INT1S	-127	127
-#INT1U	0	255
-#INT2S	-32,767	32,767
-#INT2U	0	65,534
-#INT4S	-2,147,483,647	2,147,483,647
-#INT4U	0	4,294,967,296
-#FLT4S	-3.4e+38	3.4e+38
-#FLT8S	-1.7e+308	1.7e+308
+
+vals <- c("LOG1S",	FALSE,TRUE, 
+  "INT1S",	-127,	127,
+  "INT1U", 0, 255,
+  "INT2S",	"-32,767","32,767",
+  "INT2U",	0,	"65,534",
+  "INT4S",	"-2,147,483,647",	"2,147,483,647",
+  "INT4U",	0,	"4,294,967,296",
+  "FLT4S",	"-3.4e+38",	"3.4e+38",
+  "FLT8S",	"-1.7e+308",	"1.7e+308")
+
+data_type_table <- matrix(vals,nrow=9,ncol=3,byrow=T)
+
+datatype_table <-data.frame(data_type_table)
 
 if(data_type_val=="FLT4S"){
   data_type <- "int32"
