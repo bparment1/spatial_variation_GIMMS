@@ -432,30 +432,37 @@ algorithm <- "python" #PARAM 16 #if R use mosaic function for R, if python use m
 ### Generate a table later on
 #Datatype definition	minimum possible value	maximum possible value
 
-vals <- c("LOG1S",	FALSE,TRUE, 
-  "INT1S",	-127,	127,
-  "INT1U", 0, 255,
-  "INT2S",	"-32,767","32,767",
-  "INT2U",	0,	"65,534",
-  "INT4S",	"-2,147,483,647",	"2,147,483,647",
-  "INT4U",	0,	"4,294,967,296",
-  "FLT4S",	"-3.4e+38",	"3.4e+38",
-  "FLT8S",	"-1.7e+308",	"1.7e+308")
+vals <- c("LOG1S",NA,	FALSE,TRUE, 
+  "INT1S",NA,	-127,	127,
+  "INT1U",NA ,0, 255,
+  "INT2S","Int16",	"-32,767","32,767",
+  "INT2U",NA,	0,	"65,534",
+  "INT4S","int32",	"-2,147,483,647",	"2,147,483,647",
+  "INT4U",NA,	0,	"4,294,967,296",
+  "FLT4S",NA,	"-3.4e+38",	"3.4e+38",
+  "FLT8S",NA,	"-1.7e+308",	"1.7e+308")
 
-data_type_table <- matrix(vals,nrow=9,ncol=3,byrow=T)
 
-datatype_table <-data.frame(data_type_table)
+dataType_table <- matrix(vals,nrow=9,ncol=4,byrow=T)
 
+dataType_table <-data.frame(dataType_table)
+
+names(dataType_table) <- c("r_type","gdal_type","min","max")
+
+View(dataType_table)
 if(data_type_val=="FLT4S"){
   data_type <- "int32"
-}
-if(data_type_val=="INT2S"){
- data_type <- "Int16" #, param 19, use int32 for output layers mosaiced
+  min_val <- dataType_table$min[dataType_table$r_type==data_type_val]
+  max_val <- dataType_table$min[dataType_table$r_type==data_type_val]
+  valid_range_tmp <- c(min_val,max_val)
 }
 
 tmp_files <- FALSE #arg 18, param 18, keep temp files if TRUE
 scaling <- 1 #, param 20, if null use 1, for world mosaic use 1, since it is already multiplied by 100
-values_range <- NULL #use 10,000 range for
+if(is.null(values_range)){
+  values_range <- valid_range
+}
+#values_range <- NULL #use 10,000 range for
 
 r_mask_raster_name <- NULL
 
