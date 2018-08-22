@@ -80,4 +80,33 @@ split_multiband <- function(in_file,out_suffix_str,out_dir){
   return(lf_out)
 } 
 
+## Get specific data type
+#https://www.gdal.org/frmt_gtiff.html
 
+generate_raster_dataType_table <- function(){
+  
+  ### Generate a table later on
+  #Datatype definition	minimum possible value	maximum possible value
+  
+  vals <- c("LOG1S",NA,	FALSE,TRUE, 
+            "INT1S",NA,	-127,	127,
+            "INT1U",NA ,0, 255,
+            "INT2S","Int16",	"-32,767","32,767",
+            "INT2U",NA,	0,	"65,534",
+            "INT4S","int32",	"-2,147,483,647",	"2,147,483,647",
+            "INT4U",NA,	0,	"4,294,967,296",
+            "FLT4S","Float32",	"-3.4e+38",	"3.4e+38",
+            "FLT8S",NA,	"-1.7e+308",	"1.7e+308")
+  
+  
+  dataType_table <- matrix(vals,nrow=9,ncol=4,byrow=T)
+  
+  dataType_table <-data.frame(dataType_table)
+  
+  names(dataType_table) <- c("r_type","gdal_type","min","max")
+  
+  return(dataType_table)
+}
+
+
+############################ End of script ###################
