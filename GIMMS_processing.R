@@ -1,17 +1,17 @@
 ############### SESYNC Research Support: GIMMS Spatial Variation ########## 
 ## Processing GIMMS NDVI data to explore spatio-temporal variability.
 ## GIMMS covers the 1982-2015 time period at 0.08333 degree resolution (~8km).
-##
+## General processing function for climatelandfeedback
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 08/21/2018
+## DATE MODIFIED: 08/22/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
 ## ISSUE: 
 ## TO DO:
 ##
-## COMMIT: splitting function for lag processing and main script
+## COMMIT: generating table for data type and range for Raster and GDAL formats
 ##
 ##Data downloaded from:
 #https://ecocast.arc.nasa.gov/data/pub/gimms/3g.v1/
@@ -58,7 +58,7 @@ generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Funct
 lag_processing_functions <- "lag_processing_functions_07302018.R"
 get_study_region_functions <- "get_study_region_data_07252018.R"
 mosaicing_functions <- "weighted_mosaicing_functions_08142018.R"
-raster_processing_functions <- "raster_processing_functions_08162018.R"
+raster_processing_functions <- "raster_processing_functions_08222018.R"
 source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
 source(file.path(script_path,lag_processing_functions))
@@ -429,33 +429,19 @@ data_type <- NULL
 mosaicing_method <- "use_edge_weights" #PARAM10, arg 10
 algorithm <- "python" #PARAM 16 #if R use mosaic function for R, if python use modified gdalmerge script from Alberto Guzmann
 
-### Generate a table later on
-#Datatype definition	minimum possible value	maximum possible value
 
-vals <- c("LOG1S",NA,	FALSE,TRUE, 
-  "INT1S",NA,	-127,	127,
-  "INT1U",NA ,0, 255,
-  "INT2S","Int16",	"-32,767","32,767",
-  "INT2U",NA,	0,	"65,534",
-  "INT4S","int32",	"-2,147,483,647",	"2,147,483,647",
-  "INT4U",NA,	0,	"4,294,967,296",
-  "FLT4S",NA,	"-3.4e+38",	"3.4e+38",
-  "FLT8S",NA,	"-1.7e+308",	"1.7e+308")
+dataType_table <- generate_raster_dataType_table()
+  
+#View(dataType_table)
 
+dataType_selected <- dataType_table$r_type==data_type_str
+data_type_table_selected <- dataType_table[dataType_selected,]
+data_type_table_selected
 
-dataType_table <- matrix(vals,nrow=9,ncol=4,byrow=T)
-
-dataType_table <-data.frame(dataType_table)
-
-names(dataType_table) <- c("r_type","gdal_type","min","max")
-
-View(dataType_table)
-if(data_type_val=="FLT4S"){
-  data_type <- "int32"
-  min_val <- dataType_table$min[dataType_table$r_type==data_type_val]
-  max_val <- dataType_table$min[dataType_table$r_type==data_type_val]
-  valid_range_tmp <- c(min_val,max_val)
-}
+data_type <- data_type_table_selected$gdal_type
+min_val <- data_type_table_selected$min
+max_val <- data_type_table_selected$max
+valid_range_tmp <- c(min_val,max_val)
 
 tmp_files <- FALSE #arg 18, param 18, keep temp files if TRUE
 scaling <- 1 #, param 20, if null use 1, for world mosaic use 1, since it is already multiplied by 100
