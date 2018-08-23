@@ -4,7 +4,7 @@
 #Different options to explore mosaicing are tested. This script only contains functions.
 #AUTHOR: Benoit Parmentier 
 #CREATED ON: 04/14/2015  
-#MODIFIED ON: 08/14/2018            
+#MODIFIED ON: 08/23/2018            
 #Version: 2
 #PROJECT: Environmental Layers project     
 #COMMENTS:
@@ -239,9 +239,12 @@ create_weights_fun <- function(i, list_param){
   out_dir_str <- list_param$out_dir_str
   
   ##### Prepare weight layers  
-  #lf <- unlist(lf)
   
-  r_in <- raster(lf[i]) #input image
+  if(class(lf[i])=="list"){
+    file_processed <- unlist(lf[i])
+  }
+  
+  r_in <- raster(file_processed) #input image
   tile_no <- i #file being processed, assuming tiles by tiles
   
   set1f <- function(x){rep(NA, x)}
@@ -336,9 +339,10 @@ create_weights_fun <- function(i, list_param){
   
   ####### Now save layers for weights and prod weights
   #browser()
-  extension_str <- extension(lf[i])
-  raster_name_tmp <- gsub(extension_str,"",basename(lf[i]))
-  raster_name <- file.path(out_dir_str,paste(raster_name_tmp,"_",method,"_weights_",out_suffix_str,file_format,sep=""))
+  extension_str <- extension(file_processed)
+  raster_name_tmp <- gsub(extension_str,"",basename(file_processed))
+  raster_name <- file.path(out_dir_str,
+                           paste(raster_name_tmp,"_",method,"_weights_",out_suffix_str,file_format,sep=""))
   writeRaster(r, #write out the distance image
               NAflag=NA_flag_val,
               filename=raster_name,
@@ -346,7 +350,8 @@ create_weights_fun <- function(i, list_param){
   
   ### Product weights computation
   r_var_prod <- r_in*r #this may be slow? could you GDAL instead
-  raster_name_prod <- file.path(out_dir_str, paste(raster_name_tmp,"_",method,"_prod_weights_",out_suffix_str,file_format,sep=""))
+  raster_name_prod <- file.path(out_dir_str, 
+                                paste(raster_name_tmp,"_",method,"_prod_weights_",out_suffix_str,file_format,sep=""))
   writeRaster(r_var_prod, 
               NAflag=NA_flag_val,
               filename=raster_name_prod,
@@ -502,10 +507,15 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
     scaling <- 1
   }
   valid_range <- values_range #if NULL don't screen values!!
+  ### Problem heree with values range
+  
+  #### We need to change this here:
   #valid_range <- c(-100,100) #pass this as parameter!! (in the next update)
   if(data_type=="Int16"){
     data_type_str <- "INT2S"
   }
+  data_type <- as.character(data_type)
+  
   lf_r_weights <- vector("list",length=length(lf_mosaic))
   
   rasterOptions(tmpdir=out_dir) #trying to control temporary files  written by the raster package
@@ -560,7 +570,9 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
     
     #list_param_create_weights <- list(lf_mosaic,df_points,r_feature,method,out_dir_str) 
     #names(list_param_create_weights) <- c("lf","df_points","r_feature","method","out_dir_str") 
-    list_param_create_weights <- list(lf_mosaic,df_points,r_feature,method,NA_flag_val,file_format,out_suffix_str_tmp,out_dir_str) 
+    list_param_create_weights <- list(lf_mosaic,df_points,r_feature,method,
+                                      NA_flag_val,
+                                      file_format,out_suffix_str_tmp,out_dir_str) 
     names(list_param_create_weights) <- c("lf","df_points","r_feature","method","NA_flag","file_format","out_suffix_str","out_dir_str") 
     
     #num_cores <- 11
@@ -587,7 +599,9 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
     df_points <- NULL
     r_feature <- NULL
     
-    list_param_create_weights <- list(lf_mosaic,df_points,r_feature,method,NA_flag_val,file_format,out_suffix_str_tmp,out_dir_str) 
+    list_param_create_weights <- list(lf_mosaic,df_points,r_feature,method,
+                                      NA_flag_val,file_format,
+                                      out_suffix_str_tmp,out_dir_str) 
     names(list_param_create_weights) <- c("lf","df_points","r_feature","method","NA_flag","file_format","out_suffix_str","out_dir_str") 
     #list_param_create_weights <- list(lf_mosaic,df_points,r_feature,method,out_dir_str) 
     #names(list_param_create_weights) <- c("lf","df_points","r_feature","method","out_dir_str") 
@@ -610,8 +624,10 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
     #                                      mc.preschedule=FALSE,mc.cores = num_cores) 
     
     #extract the list of files for weights and product weights
-    list_edge_r_weights <- lapply(1:length(use_edge_weights_obj_list), FUN=function(i,x){x[[i]]$r_weights},x=use_edge_weights_obj_list)
-    list_edge_r_weights_prod <- lapply(1:length(use_edge_weights_obj_list), FUN=function(i,x){x[[i]]$r_weights_prod},x=use_edge_weights_obj_list)
+    list_edge_r_weights <- lapply(1:length(use_edge_weights_obj_list),
+                                  FUN=function(i,x){x[[i]]$r_weights},x=use_edge_weights_obj_list)
+    list_edge_r_weights_prod <- lapply(1:length(use_edge_weights_obj_list), 
+                                       FUN=function(i,x){x[[i]]$r_weights_prod},x=use_edge_weights_obj_list)
     
     #simplifly later...
     list_weights <- list_edge_r_weights
@@ -642,6 +658,8 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
     cmd_str <- paste("python",python_cmd,"-o ",rast_ref,paste(lf_mosaic,collapse=" ")) 
     system(cmd_str)
   }
+  
+  browser()
   
   ## Create raster image for original predicted images with matching resolution and extent to the mosaic (reference image)
   
@@ -737,6 +755,7 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
       }else{
         rast_ref_name <- NULL
       }
+      browser()
       #cmd_mosaic_gam_CAI_dailyTmax_19840101_reg1_1984.txt
       #python /nobackupp6/aguzman4/climateLayers/sharedCode//gdal_merge_sum.py --config GDAL_CACHEMAX=1500 --overwrite=TRUE -o /nobackupp8/bparmen1/climateLayers/out
       #debug(mosaic_python_merge)
@@ -767,6 +786,8 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
       #writeLines(cmd_str2,con=file.path(out_dir,paste("cmd_mosaic_",out_suffix,".txt",sep=""))) #weights files to mosaic 
       cat(cmd_str2, file=cmd_mosaic_logfile, append=TRUE, sep = "\n")
     }
+    
+    browser()
     
     if(algorithm=="R"){
       
@@ -845,6 +866,7 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
     #if not null use the value specificied in the parameters
     #browser()
     python_cmd <- file.path(python_bin,"gdal_calc.py")
+    
     cmd_str3 <- paste(python_cmd, 
                       paste("-A ", r_prod_sum_raster_name,sep=""),
                       paste("-B ", r_weights_sum_raster_name,sep=""),
