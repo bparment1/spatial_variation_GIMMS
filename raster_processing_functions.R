@@ -4,7 +4,7 @@
 #
 ##AUTHOR: Benoit Parmentier 
 #CREATED ON: 08/16/2018  
-#MODIFIED ON: 08/16/2018            
+#MODIFIED ON: 08/22/2018            
 #Version: 1
 #PROJECT: General utilit     
 #COMMENTS:
@@ -104,6 +104,8 @@ generate_raster_dataType_table <- function(){
   dataType_table <-data.frame(dataType_table)
   
   names(dataType_table) <- c("r_type","gdal_type","min","max")
+  ### bug error, columns have become factor: changed this here
+  dataType_table <- data.frame(lapply(dataType_table, as.character), stringsAsFactors=FALSE)
   
   return(dataType_table)
 }
