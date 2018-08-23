@@ -427,9 +427,15 @@ if(processing_steps$mosaicing==TRUE){
   data_type_table_selected
   
   data_type <- data_type_table_selected$gdal_type
+  
+  #fix values range inf dataType Function
+  > min_val
+  [1] -3.4e+38
+  Levels: 0 -127 -1.7e+308 -2,147,483,647 -32,767 -3.4e+38 FALSE
+  
   min_val <- data_type_table_selected$min
   max_val <- data_type_table_selected$max
-  valid_range_tmp <- c(min_val,max_val)
+  valid_range <- c(min_val,max_val)
   NA_flag_val <- data_type_table_selected$min
   NA_flag_val <- as.numeric(as.character(NA_flag_val)) #add this to data type function
   
