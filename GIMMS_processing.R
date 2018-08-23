@@ -4,7 +4,7 @@
 ## General processing function for climatelandfeedback
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 08/22/2018
+## DATE MODIFIED: 08/23/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -53,13 +53,13 @@ library(sf)
 #Benoit setup
 script_path <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
 
-raster_processing_functions <- "GIMMS_processing_functions_07252018.R" #Functions used to mosaic predicted tiles
+gimms_processing_functions <- "GIMMS_processing_functions_07252018.R" #Functions used to mosaic predicted tiles
 generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Functions used to mosaic predicted tiles
 lag_processing_functions <- "lag_processing_functions_07302018.R"
 get_study_region_functions <- "get_study_region_data_07252018.R"
-mosaicing_functions <- "weighted_mosaicing_functions_08142018.R"
+mosaicing_functions <- "weighted_mosaicing_functions_08232018.R"
 raster_processing_functions <- "raster_processing_functions_08222018.R"
-source(file.path(script_path,raster_processing_functions)) #source all functions used in this script 
+source(file.path(script_path,gimms_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
 source(file.path(script_path,lag_processing_functions))
 source(file.path(script_path,get_study_region_functions))
@@ -83,7 +83,7 @@ scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD
 #ARGS 6
 create_out_dir_param=TRUE #create a new ouput dir if TRUE
 #ARGS 7
-out_suffix <-"GIMMS_processing_08212018" #output suffix for the files and ouptut folder
+out_suffix <-"GIMMS_processing_08232018" #output suffix for the files and ouptut folder
 #ARGS 8
 num_cores <- 2 # number of cores
 #ARGS 9
@@ -398,61 +398,63 @@ length(test) #8
 #########################################
 ########### PART 5: Mosaic outputs ###########
 
-#use R for now?
-
-#### Mosaic tiles for the variable predicted and accuracy metrics, residuals surfaces or other options
-
-#infile_reg_mosaics <- "/nobackupp8/bparmen1/NEX_data/regions_input_files/world_input_mosaics_tmin_var_04162017.csv"
-#infile_reg_mosaics is "None" when doing regional mosaics
-
-#### Constant
-
-r_test <- test[[1]][[1]]$r_local_moran
-plot(r_test)
-data_type_str <- unique(dataType(r_test))
-r_test
-NAvalue(r_test)
-range(r_test)
-
-file_format <- ".tif" #PARAM 25
-NA_value <- -32768 #PARAM 26
-NA_flag_val <- NA_value #PARAM 26
-NA_flag_val <- -3.4e+38
-
-#python script and gdal on NEX NASA:
-#mosaic_python <- "/nobackupp6/aguzman4/climateLayers/sharedCode/" #PARAM 29
-mosaic_python <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
-#python_bin <- "/nobackupp6/aguzman4/climateLayers/sharedModules2/bin" #PARAM 30
-python_bin <- "/usr/bin/" #python gdal bin, on Atlas NCEAS
-match_extent <- "FALSE" #PARAM 31 #try without matching!!!
-data_type <- NULL
-mosaicing_method <- "use_edge_weights" #PARAM10, arg 10
-algorithm <- "python" #PARAM 16 #if R use mosaic function for R, if python use modified gdalmerge script from Alberto Guzmann
-
-
-dataType_table <- generate_raster_dataType_table()
-  
-#View(dataType_table)
-
-dataType_selected <- dataType_table$r_type==data_type_str
-data_type_table_selected <- dataType_table[dataType_selected,]
-data_type_table_selected
-
-data_type <- data_type_table_selected$gdal_type
-min_val <- data_type_table_selected$min
-max_val <- data_type_table_selected$max
-valid_range_tmp <- c(min_val,max_val)
-
-tmp_files <- FALSE #arg 18, param 18, keep temp files if TRUE
-scaling <- 1 #, param 20, if null use 1, for world mosaic use 1, since it is already multiplied by 100
-if(is.null(values_range)){
-  values_range <- valid_range
-}
-#values_range <- NULL #use 10,000 range for
-
-r_mask_raster_name <- NULL
-
 if(processing_steps$mosaicing==TRUE){
+  
+  ### PARAM to prepare for mosaicing
+  
+  #1) lf_mosaic
+  #2) mosaic_method="unweighted", #default val
+  #3) num_cores=1,
+  #4) r_mask_raster_name<-NULL  #this gives the extent
+  #5) python_bin=NULL
+  #6) mosaic_python="/nobackupp6/aguzman4/climateLayers/sharedCode/gdal_merge_sum_noDataTest.py",
+  #7) algorithm="R",
+  #8) match_extent=TRUE,
+  #9) df_points=NULL,
+  #10) NA_flag_val= HULL #-9999,
+  #11) file_format=".tif" #default val
+  #12) out_suffix=NULL,
+  #13) out_dir=NULL,
+  #14) tmp_files=FALSE,
+  #15) data_type="Float32" # if NULL find it using dataType_table now
+  #16) scaling=NULL,
+  #17) values_range=NULL
+  
+  dataType_table <- generate_raster_dataType_table()
+  
+  dataType_selected <- dataType_table$r_type==data_type_str
+  data_type_table_selected <- dataType_table[dataType_selected,]
+  data_type_table_selected
+  
+  data_type <- data_type_table_selected$gdal_type
+  min_val <- data_type_table_selected$min
+  max_val <- data_type_table_selected$max
+  valid_range_tmp <- c(min_val,max_val)
+  NA_flag_val <- data_type_table_selected$min
+  NA_flag_val <- as.numeric(as.character(NA_flag_val)) #add this to data type function
+  
+  values_range <- NULL
+  tmp_files <- FALSE #arg 18, param 18, keep temp files if TRUE
+  scaling <- 1 #, param 20, if null use 1, for world mosaic use 1, since it is already multiplied by 100
+  
+  if(is.null(values_range)){
+    values_range <- valid_range
+  }
+  #values_range <- NULL #use 10,000 range for
+  
+  r_test <- test[[1]][[1]]$r_local_moran
+  plot(r_test)
+  data_type_str <- unique(dataType(r_test))
+  NAvalue(r_test) #-inf hence use the dataType_table function
+  range(r_test)
+  
+  mosaic_python <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
+  python_bin <- "/usr/bin/" #python gdal bin, on Atlas NCEAS
+  match_extent <- "FALSE" #PARAM 31 #try without matching!!!
+  data_type <- NULL
+  mosaicing_method <- "use_edge_weights" #PARAM10, arg 10
+  algorithm <- "python" #PARAM 16 #if R use mosaic function for R, if python use modified gdalmerge script from Alberto Guzmann
+  r_mask_raster_name <- NULL
   
   # list output tiles directories
   in_dir_tiles_tmp <- file.path(out_dir,paste0("tile_",1:n_tiles))
@@ -468,36 +470,10 @@ if(processing_steps$mosaicing==TRUE){
   
   ### Use mean average?
   
-  #### If input is a multiband separate the band before mosaicing?
-  ### Yes create a temporary directory and stor the files by bands
-  ### regenerate list of files
   mosaic_method <- "use_edge_weights" #this is distance from edge
   day_to_mosaic <- paste("test_",1:n_dates,sep="")
   out_suffix_tmp <- paste(mosaicing_method,day_to_mosaic[i],out_suffix,sep="_")
-  #debug(mosaicFiles)
-  #can also loop through methods!!!
-  #python_bin <- "/usr/bin/" #python gdal bin, on Atlas NCEAS
-  #python_bin <- "/nobackupp6/aguzman4/climateLayers/sharedModules/bin" #on NEX
-  #gdal_merge_sum_noDataTest.py
-  
-  #lf_mosaic,
-  #mosaic_method="unweighted",
-  #num_cores=1,
-  r_mask_raster_name<-NULL
-  #python_bin=NULL,
-  #mosaic_python="/nobackupp6/aguzman4/climateLayers/sharedCode/gdal_merge_sum_noDataTest.py",
-  #algorithm="R",
-  #match_extent=TRUE,
-  #df_points=NULL,
-  #NA_flag_val=-9999,
-  #file_format=".tif",
-  #out_suffix=NULL,
-  #ut_dir=NULL,
-  #tmp_files=FALSE,
-  #data_type="Float32",
-  #scaling=NULL,
-  #values_range=NULL
-  
+
   i <- 1
   #debug(mosaicFiles)
   
@@ -520,13 +496,19 @@ if(processing_steps$mosaicing==TRUE){
       
     df_multiband <- as.data.frame(do.call(cbind,lf_multi))
     names(df_multiband) <- paste0("tile_",1:n_tiles)
+    
+    ### bug error, columns have become factor: changed this here
+    df_multiband <- data.frame(lapply(df_multiband, as.character), stringsAsFactors=FALSE)
 
     j <- 1         
     ## for every band:
     for(j in 1:nrow(df_multiband)){
-      
+      ## problem with level variable: fixing this
       in_file <- as.list(df_multiband[j,])
+
       debug(mosaicFiles)
+      
+      ### All parameters should be set up earlier!!!!
       
       mosaic_obj <- mosaicFiles(in_file,
                                 mosaic_method="use_edge_weights",
