@@ -4,7 +4,7 @@
 ## General processing function for climatelandfeedback
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 08/23/2018
+## DATE MODIFIED: 08/24/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -58,7 +58,7 @@ generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Funct
 lag_processing_functions <- "lag_processing_functions_07302018.R"
 get_study_region_functions <- "get_study_region_data_07252018.R"
 mosaicing_functions <- "weighted_mosaicing_functions_08232018.R"
-raster_processing_functions <- "raster_processing_functions_08222018.R"
+raster_processing_functions <- "raster_processing_functions_08242018.R"
 source(file.path(script_path,gimms_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
 source(file.path(script_path,lag_processing_functions))
@@ -428,17 +428,11 @@ if(processing_steps$mosaicing==TRUE){
   
   data_type <- data_type_table_selected$gdal_type
   
-  #fix values range inf dataType Function
-  > min_val
-  [1] -3.4e+38
-  Levels: 0 -127 -1.7e+308 -2,147,483,647 -32,767 -3.4e+38 FALSE
-  
   min_val <- data_type_table_selected$min
   max_val <- data_type_table_selected$max
   valid_range <- c(min_val,max_val)
   NA_flag_val <- data_type_table_selected$min
-  NA_flag_val <- as.numeric(as.character(NA_flag_val)) #add this to data type function
-  
+
   values_range <- NULL
   tmp_files <- FALSE #arg 18, param 18, keep temp files if TRUE
   scaling <- 1 #, param 20, if null use 1, for world mosaic use 1, since it is already multiplied by 100
@@ -446,8 +440,7 @@ if(processing_steps$mosaicing==TRUE){
   if(is.null(values_range)){
     values_range <- valid_range
   }
-  #values_range <- NULL #use 10,000 range for
-  
+
   r_test <- test[[1]][[1]]$r_local_moran
   plot(r_test)
   data_type_str <- unique(dataType(r_test))
@@ -512,7 +505,7 @@ if(processing_steps$mosaicing==TRUE){
       ## problem with level variable: fixing this
       in_file <- as.list(df_multiband[j,])
 
-      debug(mosaicFiles)
+      #debug(mosaicFiles)
       
       ### All parameters should be set up earlier!!!!
       
