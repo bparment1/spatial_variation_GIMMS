@@ -4,7 +4,7 @@
 #Different options to explore mosaicing are tested. This script only contains functions.
 #AUTHOR: Benoit Parmentier 
 #CREATED ON: 04/14/2015  
-#MODIFIED ON: 08/23/2018            
+#MODIFIED ON: 08/27/2018            
 #Version: 2
 #PROJECT: Environmental Layers project     
 #COMMENTS:
@@ -344,7 +344,7 @@ create_weights_fun <- function(i, list_param){
   raster_name <- file.path(out_dir_str,
                            paste(raster_name_tmp,"_",method,"_weights_",out_suffix_str,file_format,sep=""))
   writeRaster(r, #write out the distance image
-              NAflag=NA_flag_val,
+              #NAflag=NA_flag_val, #removing this option, this should not be set here
               filename=raster_name,
               overwrite=TRUE)  
   
@@ -352,8 +352,9 @@ create_weights_fun <- function(i, list_param){
   r_var_prod <- r_in*r #this may be slow? could you GDAL instead
   raster_name_prod <- file.path(out_dir_str, 
                                 paste(raster_name_tmp,"_",method,"_prod_weights_",out_suffix_str,file_format,sep=""))
+  #NA_flag_val <- as.numeric(NA_flag_val)
   writeRaster(r_var_prod, 
-              NAflag=NA_flag_val,
+              #NAflag=NA_flag_val,
               filename=raster_name_prod,
               overwrite=TRUE)  
   
@@ -509,7 +510,7 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
   valid_range <- values_range #if NULL don't screen values!!
   ### Problem heree with values range
   
-  #### We need to change this here:
+  #### We need to change this here and use the dataType table from the function!!
   #valid_range <- c(-100,100) #pass this as parameter!! (in the next update)
   if(data_type=="Int16"){
     data_type_str <- "INT2S"
@@ -592,13 +593,15 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
     
   }
   
-  browser()
+  #browser()
   if(mosaic_method=="use_edge_weights"){
 
     method <- "use_edge"
     df_points <- NULL
     r_feature <- NULL
     
+    ## Note that at this stage NA_flag_val should be FLT4S or FLT8S 
+    ## the final output dataType should be set at the end.
     list_param_create_weights <- list(lf_mosaic,df_points,r_feature,method,
                                       NA_flag_val,file_format,
                                       out_suffix_str_tmp,out_dir_str) 
@@ -659,7 +662,7 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
     system(cmd_str)
   }
   
-  browser()
+  #browser()
   
   ## Create raster image for original predicted images with matching resolution and extent to the mosaic (reference image)
   
@@ -755,10 +758,12 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
       }else{
         rast_ref_name <- NULL
       }
-      browser()
+      #browser()
       #cmd_mosaic_gam_CAI_dailyTmax_19840101_reg1_1984.txt
       #python /nobackupp6/aguzman4/climateLayers/sharedCode//gdal_merge_sum.py --config GDAL_CACHEMAX=1500 --overwrite=TRUE -o /nobackupp8/bparmen1/climateLayers/out
       #debug(mosaic_python_merge)
+      ### The NA_flag_val should be set to FLT4S and FLTS8S
+      
       mosaic_weights_obj <- mosaic_python_merge(NA_flag_val=NA_flag_val,
                                                 module_path=mosaic_python,
                                                 module_name="gdal_merge_sum.py",
@@ -787,7 +792,7 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
       cat(cmd_str2, file=cmd_mosaic_logfile, append=TRUE, sep = "\n")
     }
     
-    browser()
+    #browser()
     
     if(algorithm=="R"){
       
@@ -854,6 +859,13 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
     
     
     #r_m_weighted_mean <- r_prod_sum/r_weights_sum #this is the mosaic using weighted mean...
+    #r_prod <-raster(r_prod_sum_raster_name)
+    #r_weights <-  raster(r_weights_sum_raster_name)
+    #plot(r_weights)
+    #plot(r_prod)
+    #r_test <- r_prod/r_weights
+    ##plot(r_test)
+    #range(r_test)
     
     r_m_weighted_mean_raster_name <- file.path(out_dir_str,paste("r_m_",mosaic_method,"_weighted_mean_",out_suffix,".tif",sep=""))
     #r_m_weighted_mean_raster_name <- "test_tmp.tif"
@@ -867,16 +879,23 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
     #browser()
     python_cmd <- file.path(python_bin,"gdal_calc.py")
     
+    data_type_tmp <- "Float32"
+    NA_flag_val_tmp <-  "-3.4e+38"
+    
     cmd_str3 <- paste(python_cmd, 
                       paste("-A ", r_prod_sum_raster_name,sep=""),
                       paste("-B ", r_weights_sum_raster_name,sep=""),
                       paste("--outfile=",r_m_weighted_mean_raster_name,sep=""),
-                      paste("--type=",data_type,sep=""),
+                      paste("--type=",data_type_tmp,sep=""),
                       "--co='COMPRESS=LZW'",
-                      paste("--NoDataValue=",NA_flag_val,sep=""),
+                      paste("--NoDataValue=",NA_flag_val_tmp,sep=""),
                       paste("--calc='(A/B)*",scaling,"'",sep=""),
                       "--overwrite",sep=" ") #division by zero is problematic...
     system(cmd_str3)
+    
+    #r_test2 <- raster(r_m_weighted_mean_raster_name)
+    #r_diff <- r_test - r_test2
+    #plot(r_diff) #ok
     
     ## Skipping this step now...
     #if(!is.null(r_mask_raster_name)){
@@ -905,7 +924,12 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
     
     raster_name <- r_m_weighted_mean_raster_name
     #raster_name <- r_m_weighted_mean_raster_name_matched
-    max_val <- valid_range[2]*scaling #set min_valid
+    if(is.character(valid_range[2])){
+      max_val <- as.numeric(valid_range[2])*scaling #set min_valid
+    }else{
+      max_val <- valid_range[2]*scaling #set min_valid
+    }
+    
     raster_name_rec1 <- file.path(out_dir_str,paste("r_m_",mosaic_method,"_weighted_mean_rec1_",out_suffix,"_tmp",".tif",sep=""))
     #rec_tmp1 <- file.path(out_dir_str,paste("r_m_",mosaic_method,"_weighted_mean_rec_",out_suffix,".tif",sep=""))
     cmd_str4 <- paste(python_cmd, 
@@ -918,8 +942,21 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
                       "--overwrite",sep=" ") #division by zero is problematic...
     system(cmd_str4)
     
+    #r_rec1 <- raster(raster_name_rec1)
+    #plot(r_rec1)
+    #r <- raster(raster_name)
+    #plot(r)
+    
+    #max_val
     raster_name_rec2 <- file.path(out_dir_str,paste("r_m_",mosaic_method,"_weighted_mean_rec2_",out_suffix,"_tmp",".tif",sep=""))
-    min_val <- valid_range[1]*scaling #set min_valid as a input
+    #min_val <- valid_range[1]*scaling #set min_valid as a input
+
+    if(is.character(valid_range[1])){
+      min_vaI <- as.numeric(valid_range[1])*scaling #set min_valid
+    }else{
+      min_val <- valid_range[1]*scaling #set min_valid
+    }
+    
     cmd_str5 <- paste(python_cmd, 
                       paste("-A ", raster_name,sep=""),
                       paste("--outfile=",raster_name_rec2,sep=""),
@@ -943,6 +980,10 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
                       paste("--calc='(((((A+B))<",min_val,")*",NA_flag_val,")+1)*C'",sep=""),
                       "--overwrite",sep=" ") #division by zero is problematic...
     system(cmd_str6)    
+    
+    #r_tot <- raster(r_m_weighted_mean_raster_name_rec)
+    #plot(r_tot)
+    #plot(r)
     
     #check if file exists first...
     
