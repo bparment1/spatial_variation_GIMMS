@@ -4,7 +4,7 @@
 ## General processing function for climatelandfeedback
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 08/27/2018
+## DATE MODIFIED: 08/28/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -476,6 +476,8 @@ if(processing_steps$mosaicing==TRUE){
   i <- 1
   #debug(mosaicFiles)
   
+  list_date_mosaic_obj <- vector("list",length=length(lf_mosaic))
+  
   ## For every date
   for(i in 1:length(lf_mosaic)){
     
@@ -501,15 +503,16 @@ if(processing_steps$mosaicing==TRUE){
 
     j <- 1         
     ## for every band:
+    list_mosaic_obj <- vector("list",length=nrow(df_multiband))
     for(j in 1:nrow(df_multiband)){
       ## problem with level variable: fixing this
       in_file <- as.list(df_multiband[j,])
-
+      out_suffix_tmp_band <-  paste0("b_",j,"_",out_suffix_tmp)
       #undebug(mosaicFiles)
       
       ### All parameters should be set up earlier!!!!
       
-      mosaic_obj <- mosaicFiles(in_file,
+      list_mosaic_obj[[j]] <- mosaicFiles(in_file,
                                 mosaic_method="use_edge_weights",
                                 num_cores=num_cores,
                                 r_mask_raster_name=r_mask_raster_name, # can bin NULL
@@ -520,16 +523,16 @@ if(processing_steps$mosaicing==TRUE){
                                 df_points=NULL,
                                 NA_flag=NA_flag_val,
                                 file_format=file_format,
-                                out_suffix=out_suffix_tmp,
-                                out_dir=out_dir,
+                                out_suffix=out_suffix_tmp_band,
+                                out_dir=out_dir_tmp,
                                 tmp_files=tmp_files,
                                 data_type=data_type,
                                 scaling=scaling,
                                 values_range=values_range)
     }
       
-      #runs in 15-16 minutes for 3 dates and mosaicing of 28 tiles...
-      list_mosaic_obj[[i]] <- mosaic_obj
+    #runs in 15-16 minutes for 3 dates and mosaicing of 28 tiles...
+    list_date_mosaic_obj[[i]] <- list_mosaic_obj[[j]]
       
   }
     
