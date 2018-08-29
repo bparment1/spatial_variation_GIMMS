@@ -4,7 +4,7 @@
 ## General processing function for climatelandfeedback
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 08/28/2018
+## DATE MODIFIED: 08/29/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -57,7 +57,7 @@ gimms_processing_functions <- "GIMMS_processing_functions_07252018.R" #Functions
 generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Functions used to mosaic predicted tiles
 lag_processing_functions <- "lag_processing_functions_07302018.R"
 get_study_region_functions <- "get_study_region_data_07252018.R"
-mosaicing_functions <- "weighted_mosaicing_functions_08272018.R"
+mosaicing_functions <- "weighted_mosaicing_functions_08292018.R"
 raster_processing_functions <- "raster_processing_functions_08242018.R"
 source(file.path(script_path,gimms_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
@@ -83,7 +83,7 @@ scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD
 #ARGS 6
 create_out_dir_param=TRUE #create a new ouput dir if TRUE
 #ARGS 7
-out_suffix <-"GIMMS_processing_08232018" #output suffix for the files and ouptut folder
+out_suffix <-"GIMMS_processing_08292018" #output suffix for the files and ouptut folder
 #ARGS 8
 num_cores <- 2 # number of cores
 #ARGS 9
@@ -392,8 +392,11 @@ length(test[[1]][[1]]) #24
 length(test) #8
 ### Reorganize the files for mosaicing
 
-
+test[[1]][1]
 ##### Now mosaic:
+
+data_type_str <- dataType(test[[1]][[1]]$r_local_moran)
+
 
 #########################################
 ########### PART 5: Mosaic outputs ###########
@@ -420,6 +423,14 @@ if(processing_steps$mosaicing==TRUE){
   #16) scaling=NULL,
   #17) values_range=NULL
   
+  #data_type_str <- unique(dataType(test[[1]][[1]]$r_local_moran)
+  r_test <- test[[1]][[1]]$r_local_moran
+  plot(r_test)
+  data_type_str <- unique(dataType(r_test))
+                          
+  NAvalue(r_test) #-inf hence use the dataType_table function
+  range(r_test)
+                          
   dataType_table <- generate_raster_dataType_table()
   
   dataType_selected <- dataType_table$r_type==data_type_str
@@ -441,11 +452,6 @@ if(processing_steps$mosaicing==TRUE){
     values_range <- valid_range
   }
 
-  r_test <- test[[1]][[1]]$r_local_moran
-  plot(r_test)
-  data_type_str <- unique(dataType(r_test))
-  NAvalue(r_test) #-inf hence use the dataType_table function
-  range(r_test)
   
   mosaic_python <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
   python_bin <- "/usr/bin/" #python gdal bin, on Atlas NCEAS
@@ -470,8 +476,7 @@ if(processing_steps$mosaicing==TRUE){
   ### Use mean average?
   
   mosaic_method <- "use_edge_weights" #this is distance from edge
-  day_to_mosaic <- paste("test_",1:n_dates,sep="")
-  out_suffix_tmp <- paste(mosaicing_method,day_to_mosaic[i],out_suffix,sep="_")
+  day_to_mosaic <- paste("date_",1:n_dates,sep="")
 
   i <- 1
   #debug(mosaicFiles)
@@ -482,17 +487,19 @@ if(processing_steps$mosaicing==TRUE){
   for(i in 1:length(lf_mosaic)){
     
     lf_in <- lf_mosaic[[i]]
-    out_dir_tmp <- paste0("date_outputs_",i,"_tmp")
+    out_dir_tmp <- paste0("date_outputs_date",i,"_tmp")
     if(!dir.exists(out_dir_tmp)){
       dir.create(out_dir_tmp)
     }
+    out_suffix_date <- paste(mosaicing_method,day_to_mosaic[i],out_suffix,sep="_")
     
     #debug(split_multiband)
-    lf_multi <- split_multiband(lf_in[1],out_suffix,out_dir_tmp)
+    #lf_multi <- split_multiband(lf_in[1],out_suffix,out_dir_tmp)
     
+    out_suffix_tmp <- "_tmp"
     lf_multi <- lapply(lf_in,
                        FUN=split_multiband,
-                       out_suffix = "",
+                       out_suffix = out_suffix_tmp,
                        out_dir = out_dir_tmp)
       
     df_multiband <- as.data.frame(do.call(cbind,lf_multi))
@@ -504,10 +511,13 @@ if(processing_steps$mosaicing==TRUE){
     j <- 1         
     ## for every band:
     list_mosaic_obj <- vector("list",length=nrow(df_multiband))
+    
     for(j in 1:nrow(df_multiband)){
       ## problem with level variable: fixing this
       in_file <- as.list(df_multiband[j,])
-      out_suffix_tmp_band <-  paste0("b_",j,"_",out_suffix_tmp)
+      out_suffix_tmp_band <-  paste0("b_",j,"_",out_suffix_date)
+      #out_suffix_date
+      
       #undebug(mosaicFiles)
       
       ### All parameters should be set up earlier!!!!
