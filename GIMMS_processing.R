@@ -4,7 +4,7 @@
 ## General processing function for climatelandfeedback
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 08/29/2018
+## DATE MODIFIED: 08/30/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -57,7 +57,7 @@ gimms_processing_functions <- "GIMMS_processing_functions_07252018.R" #Functions
 generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Functions used to mosaic predicted tiles
 lag_processing_functions <- "lag_processing_functions_07302018.R"
 get_study_region_functions <- "get_study_region_data_07252018.R"
-mosaicing_functions <- "weighted_mosaicing_functions_08292018.R"
+mosaicing_functions <- "weighted_mosaicing_functions_08302018.R"
 raster_processing_functions <- "raster_processing_functions_08242018.R"
 source(file.path(script_path,gimms_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
@@ -83,7 +83,7 @@ scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD
 #ARGS 6
 create_out_dir_param=TRUE #create a new ouput dir if TRUE
 #ARGS 7
-out_suffix <-"GIMMS_processing_08292018" #output suffix for the files and ouptut folder
+out_suffix <-"GIMMS_processing_08302018" #output suffix for the files and ouptut folder
 #ARGS 8
 num_cores <- 2 # number of cores
 #ARGS 9
@@ -452,11 +452,10 @@ if(processing_steps$mosaicing==TRUE){
     values_range <- valid_range
   }
 
-  
   mosaic_python <- "/nfs/bparmentier-data/Data/projects/spatial_variation_GIMMS/scripts"
   python_bin <- "/usr/bin/" #python gdal bin, on Atlas NCEAS
   match_extent <- "FALSE" #PARAM 31 #try without matching!!!
-  data_type <- NULL
+  #data_type <- NULL
   mosaicing_method <- "use_edge_weights" #PARAM10, arg 10
   algorithm <- "python" #PARAM 16 #if R use mosaic function for R, if python use modified gdalmerge script from Alberto Guzmann
   r_mask_raster_name <- NULL
@@ -487,16 +486,19 @@ if(processing_steps$mosaicing==TRUE){
   for(i in 1:length(lf_mosaic)){
     
     lf_in <- lf_mosaic[[i]]
-    out_dir_tmp <- paste0("date_outputs_date",i,"_tmp")
+    out_suffix_date <- paste(day_to_mosaic[i],mosaicing_method,out_suffix,sep="_")
+    #out_dir_tmp <- paste0("date_outputs_date",i,"_tmp")
+    out_dir_tmp <- paste0("date_outputs_",out_suffix_date)
+    out_dir_tmp <- file.path(out_dir,out_dir_tmp)
+    
     if(!dir.exists(out_dir_tmp)){
       dir.create(out_dir_tmp)
     }
-    out_suffix_date <- paste(mosaicing_method,day_to_mosaic[i],out_suffix,sep="_")
     
     #debug(split_multiband)
     #lf_multi <- split_multiband(lf_in[1],out_suffix,out_dir_tmp)
     
-    out_suffix_tmp <- "_tmp"
+    out_suffix_tmp <- "_temporary"
     lf_multi <- lapply(lf_in,
                        FUN=split_multiband,
                        out_suffix = out_suffix_tmp,
@@ -543,7 +545,9 @@ if(processing_steps$mosaicing==TRUE){
       
     #runs in 15-16 minutes for 3 dates and mosaicing of 28 tiles...
     list_date_mosaic_obj[[i]] <- list_mosaic_obj[[j]]
-      
+    
+    #need to clean up temporary files here:
+    
   }
     
   
