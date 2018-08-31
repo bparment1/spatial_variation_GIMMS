@@ -4,7 +4,7 @@
 ## General processing function for climatelandfeedback
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 08/30/2018
+## DATE MODIFIED: 08/31/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -547,7 +547,11 @@ if(processing_steps$mosaicing==TRUE){
     list_date_mosaic_obj[[i]] <- list_mosaic_obj[[j]]
     
     #need to clean up temporary files here:
-    
+    if(tmp_files==F){ #if false...delete all files with "_tmp"
+      lf_tmp <- list.files(pattern="*.*temporary*.*",path=out_dir_tmp,full.names=T)
+      ##now delete temporary files...
+      file.remove(lf_tmp)
+    }
   }
     
   
@@ -556,46 +560,40 @@ if(processing_steps$mosaicing==TRUE){
 #########################################
 ########### PART 5: Results: Examining lag information and variability ###########
 
-grid_sampling_raster <- function(x_sampling,y_sampling,r){
-  grid_sf<- st_make_grid(r,n=c(x_sampling,y_sampling))
-  <- st_centroid(grid_sf)
-  
-  return(grid_centroids)
-}
-plot(r_local_moran_stack,y=2)
+#list.files(out_dir)
+list_dirs_outputs <- list.dirs(out_dir)
+
+list_dir_mosaics <- list_dirs_outputs[grepl("date_outputs_date.*.",list_dirs_outputs)]
+
+lf <- mixedsort(list.files(list_dir_mosaics[[1]],
+                           pattern="r_m_.*.mean_masked.*.tif",full.names=T))
+r_stack <- stack(lf) 
+#plot(r_stack)
+plot(r_stack,y=2)
+
+#debug(grid_sampling_raster)
+grid_samples_sf <- grid_sampling_raster(x_sampling=4,y_sampling=4,r=r_stack)
+
+grid_samples_sp <- as(grid_samples_sf,"Spatial")
+
+x_val <- extract(r_stack,grid_samples_sp,df=T)
+#class(x_val)
+dim(x_val)
+x_val <- as(x_val,"sf")
+plot(as.numeric(x_val[1,2:11]),type="l")
+plot(as.numeric(x_val[2,2:11]),type="l")
+plot(as.numeric(x_val[3,2:11]),type="l")
+plot(as.numeric(x_val[10,2:11]),type="l")
+View(x_val)
+
+
 animate(r_local_moran_stack) ## Generate movie later on:
 
 
-#### Generate longitude and latitude info
-locations_mat <- rbind(c(-110.6982,34.4208),
-                      c(-119.6982,34.4208),
-                      c(-101,42),
-                      c(-123,47))
-
-locations_df <- as.data.frame(locations_mat)
-names(locations_df)<- c("longitude","latitude")
-locations_df$ID <- 1:nrow(locations_df)
-locations_sf <- st_as_sf(locations_df,coords=c("longitude", "latitude"), 
-                         crs = 4326) 
-  
-  
-plot(r_tile)
-plot(locations_sf$geometry,add=T)
-
-x_val <- extract(r_local_moran_stack,locations_mat)
-
-plot(x_val[1,],type="l",ylim=c(-1.2,1.2))
-lines(x_val[2,],type="l",col="red")
-lines(x_val[3,],type="l",col="green")
-lines(x_val[4,],type="l",col="blue")
-
-
-moran_I_df <-mclapply(1:nlayers(r_stack), list_param=list_param_moran, 
-                      FUN=moran_multiple_fun,mc.preschedule=FALSE,
-                     mc.cores = 2) #This is the end bracket from mclapply(...) statement
-
-moran_df <- do.call(cbind,moran_I_df) #bind Moran's I value 10*nlayers data.frame
-moran_df$lag <-1:nrow(moran_df)
+#plot(x_val[1,],type="l",ylim=c(-1.2,1.2))
+#lines(x_val[2,],type="l",col="red")
+#lines(x_val[3,],type="l",col="green")
+#lines(x_val[4,],type="l",col="blue")
 
 names(moran_df) <- c("moran_I","lag")
 plot(moran_df$moran_I ~moran_df$lag)
