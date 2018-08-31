@@ -120,4 +120,15 @@ generate_raster_dataType_table <- function(){
 }
 
 
+
+grid_sampling_raster <- function(x_sampling,y_sampling,r){
+  grid_sf<- st_make_grid(r,n=c(x_sampling,y_sampling))
+  grid_samples <- st_centroid(grid_sf)
+  #plot(grid_sf,add=T)
+  #plot(r,y=1)
+  #plot(grid_samples,add=T)
+  #class(grid)
+  return(grid_samples)
+}
+
 ############################ End of script ###################
