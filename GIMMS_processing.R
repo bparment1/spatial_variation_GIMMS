@@ -4,7 +4,7 @@
 ## General processing function for climatelandfeedback
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 08/31/2018
+## DATE MODIFIED: 09/04/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -58,7 +58,7 @@ generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Funct
 lag_processing_functions <- "lag_processing_functions_07302018.R"
 get_study_region_functions <- "get_study_region_data_07252018.R"
 mosaicing_functions <- "weighted_mosaicing_functions_08302018.R"
-raster_processing_functions <- "raster_processing_functions_08242018.R"
+raster_processing_functions <- "raster_processing_functions_08312018.R"
 source(file.path(script_path,gimms_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
 source(file.path(script_path,lag_processing_functions))
@@ -83,9 +83,9 @@ scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD
 #ARGS 6
 create_out_dir_param=TRUE #create a new ouput dir if TRUE
 #ARGS 7
-out_suffix <-"GIMMS_processing_08302018" #output suffix for the files and ouptut folder
+out_suffix <-"GIMMS_processing_09042018" #output suffix for the files and ouptut folder
 #ARGS 8
-num_cores <- 2 # number of cores
+num_cores <- 4 # number of cores
 #ARGS 9
 date_param <- "1982.01.01;1982.12.31" #start date, end date
 #ARGS 10
@@ -104,7 +104,9 @@ max_lag <- 10 #maximum lag to consider
 #ARGS 15
 processing_steps <- list(download=FALSE,
                          import=FALSE,
-                         tiling=TRUE)
+                         tiling=TRUE,
+                         analyses=TRUE,
+                         mosaicing=TRUE)
 
 ################# START SCRIPT ###############################
 
@@ -335,67 +337,72 @@ if(processing_steps$tiling==TRUE){
 #out_dir
 #out_suffix
 
-tile_index <- 4 #This is tile grid 65
-lf_gimms <- mixedsort(list.files(pattern=file_format,path=in_dir,full.names=T))
-
-tiles_sf <- st_read(out_tiles_filename)
-n_tiles <- nrow(tiles_sf)
-#ref_file <- stack(lf_gimms[1]
-
-#debug(generate_lag_data_time_fun)
-
-test <- generate_lag_data_time_fun(tile_index=tile_index,
-                                   grid_filename=out_tiles_filename,
-                                   r=lf_gimms,
-                                   max_lag=max_lag,
-                                   multiband=multiband,
-                                   file_format=file_format,
-                                  num_cores=4,
-                                   out_dir=NULL,#if null a output dir name with tile_+index nunber is created
-                                   out_suffix=out_suffix)
-
-#undebug(generate_lag_data_time_fun)
-#test <- lapply(1:n_tiles,
-#               FUN=generate_lag_data_time_fun,
-#               grid_filename=out_tiles_filename,
-#               r=lf_gimms,
-#               max_lag=max_lag,
-#               multiband=multiband,
-#               file_format=file_format,
-#              num_cores=4,
-#               out_dir=NULL,
-#               out_suffix=out_suffix)
-
-test <- mclapply(1:n_tiles,
-               FUN=generate_lag_data_time_fun,
-               grid_filename=out_tiles_filename,
-               r=lf_gimms,
-               max_lag=max_lag,
-               multiband=multiband,
-               file_format=file_format,
-               num_cores=4,
-               out_dir=NULL,
-               out_suffix=out_suffix)
-
-#test[[1]][[1]]
-#test[[1]][[1]]$out_raster_name
-
-#> names(test[[1]][[1]])
-#[1] "r_local_moran"   "out_raster_name"
-#> (test[[1]][[1]]$out_raster_name)
-#[1] "ndvi3g_geo_v1_NDVI_1982_01_01__lag_1_10.tif"
-#> (test[[1]][[2]]$out_raster_name)
-#[1] "ndvi3g_geo_v1_NDVI_1982_01_15__lag_1_10.tif"
-
-length(test[[1]][[1]]) #24
-
-length(test) #8
-### Reorganize the files for mosaicing
-
-test[[1]][1]
-##### Now mosaic:
-
-data_type_str <- dataType(test[[1]][[1]]$r_local_moran)
+if(processing_steps$analyses==TRUE){
+  
+  tile_index <- 1 #This is tile grid 65
+  lf_gimms <- mixedsort(list.files(pattern=file_format,path=in_dir,full.names=T))
+  
+  tiles_sf <- st_read(out_tiles_filename)
+  n_tiles <- nrow(tiles_sf)
+  #ref_file <- stack(lf_gimms[1]
+  
+  #debug(generate_lag_data_time_fun)
+  
+  test <- generate_lag_data_time_fun(tile_index=tile_index,
+                                     grid_filename=out_tiles_filename,
+                                     r=lf_gimms,
+                                     max_lag=max_lag,
+                                     multiband=multiband,
+                                     file_format=file_format,
+                                     num_cores=4,
+                                     out_dir=NULL,#if null a output dir name with tile_+index nunber is created
+                                     out_suffix=out_suffix)
+  
+  #undebug(generate_lag_data_time_fun)
+  #test <- lapply(1:n_tiles,
+  #               FUN=generate_lag_data_time_fun,
+  #               grid_filename=out_tiles_filename,
+  #               r=lf_gimms,
+  #               max_lag=max_lag,
+  #               multiband=multiband,
+  #               file_format=file_format,
+  #              num_cores=4,
+  #               out_dir=NULL,
+  #               out_suffix=out_suffix)
+  
+  test <- mclapply(1:n_tiles,
+                   FUN=generate_lag_data_time_fun,
+                   grid_filename=out_tiles_filename,
+                   r=lf_gimms,
+                   max_lag=max_lag,
+                   multiband=multiband,
+                   file_format=file_format,
+                   num_cores=num_cores,
+                   out_dir=NULL,
+                   out_suffix=out_suffix)
+  
+  #test[[1]][[1]]
+  #test[[1]][[1]]$out_raster_name
+  
+  #> names(test[[1]][[1]])
+  #[1] "r_local_moran"   "out_raster_name"
+  #> (test[[1]][[1]]$out_raster_name)
+  #[1] "ndvi3g_geo_v1_NDVI_1982_01_01__lag_1_10.tif"
+  #> (test[[1]][[2]]$out_raster_name)
+  #[1] "ndvi3g_geo_v1_NDVI_1982_01_15__lag_1_10.tif"
+  
+  length(test[[1]][[1]]) #24
+  
+  length(test) #8
+  ### Reorganize the files for mosaicing
+  
+  test[[1]][1]
+  ##### Now mosaic:
+  
+  data_type_str <- dataType(test[[1]][[1]]$r_local_moran)
+  
+}
+  
 
 
 #########################################
@@ -569,8 +576,17 @@ lf <- mixedsort(list.files(list_dir_mosaics[[1]],
                            pattern="r_m_.*.mean_masked.*.tif",full.names=T))
 r_stack <- stack(lf) 
 #plot(r_stack)
-plot(r_stack,y=2)
+plot(r_stack,y=1)
 
+plot(subset(r_test,1),add=T)
+e <- extent(r_test)
+plot(e,add=T)
+plot(grid_samples_sp[1,],add=T)
+plot(grid_samples_sp[10,],add=T)
+plot(grid_samples_sp,add=T)
+text(grid_samples_sp,1:16)
+
+?text
 #debug(grid_sampling_raster)
 grid_samples_sf <- grid_sampling_raster(x_sampling=4,y_sampling=4,r=r_stack)
 
@@ -580,23 +596,40 @@ x_val <- extract(r_stack,grid_samples_sp,df=T)
 #class(x_val)
 dim(x_val)
 x_val <- as(x_val,"sf")
+
 plot(as.numeric(x_val[1,2:11]),type="l")
 plot(as.numeric(x_val[2,2:11]),type="l")
 plot(as.numeric(x_val[3,2:11]),type="l")
 plot(as.numeric(x_val[10,2:11]),type="l")
-View(x_val)
+plot(as.numeric(x_val[4,2:11]),type="l")
+plot(as.numeric(x_val[5,2:11]),type="l")
+plot(as.numeric(x_val[6,2:11]),type="l")
+
+x_val_test <- extract(r_test,grid_samples_sp,df=T)
+x_val_test
+
+x_val_test[9,] - x_val[9,]
+x_val_test[10,] - x_val[10,]
+
+plot(as.numeric(x_val[9,2:11]),type="l")
+barplot(as.numeric(x_val_test[9,2:11]),col="red",type="l")
+
+plot(as.numeric(x_val_test[10,2:11]),col="red",type="l")
+lines(as.numeric(x_val[10,2:11]),type="l")
 
 
-animate(r_local_moran_stack) ## Generate movie later on:
 
+#View(x_val)
+
+animate(r_stack) ## Generate movie later on:
 
 #plot(x_val[1,],type="l",ylim=c(-1.2,1.2))
 #lines(x_val[2,],type="l",col="red")
 #lines(x_val[3,],type="l",col="green")
 #lines(x_val[4,],type="l",col="blue")
 
-names(moran_df) <- c("moran_I","lag")
-plot(moran_df$moran_I ~moran_df$lag)
+#names(moran_df) <- c("moran_I","lag")
+#plot(moran_df$moran_I ~moran_df$lag)
 #plot(moran_df$moran_I ~moran_df$lag,ylim=c(0,1))
 
 #prepare to automate the plotting   all columns
