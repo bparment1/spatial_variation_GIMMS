@@ -930,6 +930,7 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
       max_val <- valid_range[2]*scaling #set min_valid
     }
     
+    ### This create a mask to remove values greater than max val:
     raster_name_rec1 <- file.path(out_dir_str,paste("r_m_",mosaic_method,"_weighted_mean_rec1_",out_suffix,"_tmp",".tif",sep=""))
     #rec_tmp1 <- file.path(out_dir_str,paste("r_m_",mosaic_method,"_weighted_mean_rec_",out_suffix,".tif",sep=""))
     cmd_str4 <- paste(python_cmd, 
@@ -947,12 +948,12 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
     #r <- raster(raster_name)
     #plot(r)
     
-    #max_val
+    ### This create a mask to remove values less than min val:
     raster_name_rec2 <- file.path(out_dir_str,paste("r_m_",mosaic_method,"_weighted_mean_rec2_",out_suffix,"_tmp",".tif",sep=""))
     #min_val <- valid_range[1]*scaling #set min_valid as a input
 
     if(is.character(valid_range[1])){
-      min_vaI <- as.numeric(valid_range[1])*scaling #set min_valid
+      min_val <- as.numeric(valid_range[1])*scaling #set min_valid
     }else{
       min_val <- valid_range[1]*scaling #set min_valid
     }
