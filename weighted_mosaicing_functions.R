@@ -1001,7 +1001,7 @@ mosaicFiles <- function(lf_mosaic,mosaic_method="unweighted",num_cores=1,r_mask_
     cat(cmd_str3, file=cmd_mosaic_logfile, append=TRUE, sep = "\n")
     cat(cmd_str4, file=cmd_mosaic_logfile, append=TRUE, sep = "\n")
     cat(cmd_str5, file=cmd_mosaic_logfile, append=TRUE, sep = "\n")
-    cat(cmd_str6, file=cmd_mosaic_logfile, append=TRUE, sep = "\n")
+     cat(cmd_str6, file=cmd_mosaic_logfile, append=TRUE, sep = "\n")
     
     #cmd_str <- "/nobackupp6/aguzman4/climateLayers/sharedModules/bin/gdal_calc.py -A r_prod_weights_sum_m_use_edge_weights_weighted_mean_gam_CAI_dailyTmax_19920101_reg4_run10_1500x4500_global_analyses_pred_1992_10052015.tif -B r_weights_sum_m_use_edge_weights_weighted_mean_gam_CAI_dailyTmax_19920101_reg4_run10_1500x4500_global_analyses_pred_1992_10052015.tif --outfile='test2.tif' --calc='A/B' --overwrite"
     
