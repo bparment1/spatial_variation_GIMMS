@@ -581,12 +581,10 @@ plot(r_stack,y=1)
 plot(subset(r_test,1),add=T)
 e <- extent(r_test)
 plot(e,add=T)
-plot(grid_samples_sp[1,],add=T)
+plot(grid_samples_sp[9,],add=T)
 plot(grid_samples_sp[10,],add=T)
-plot(grid_samples_sp,add=T)
-text(grid_samples_sp,1:16)
 
-?text
+
 #debug(grid_sampling_raster)
 grid_samples_sf <- grid_sampling_raster(x_sampling=4,y_sampling=4,r=r_stack)
 
@@ -651,5 +649,98 @@ animate(r_stack) ## Generate movie later on:
 #print(p)
 
 #dev.off()
+
+
+### Checking outputs:
+
+lf_mosaic
+
+lf_files <- unlist(lf_mosaic)
+
+##Maching resolution is probably only necessary for the r mosaic function
+#Modify later to take into account option R or python...
+out_suffix_str_tmp <- "check"
+list_param_raster_match <- list(lf_files,rast_ref,file_format,python_bin,out_suffix_str_tmp,out_dir_str)
+names(list_param_raster_match) <- c("lf_files","rast_ref","file_format","python_bin","out_suffix","out_dir_str")
+
+#undebug(raster_match)
+#r_test <- raster_match(1,list_param_raster_match)
+#r_test <- raster(raster_match(1,list_param_raster_match))
+
+lf_tiles_m <- mclapply(1:length(lf_files),FUN=raster_match,list_param=list_param_raster_match,mc.preschedule=FALSE,mc.cores = num_cores)                           
+
+r_stack <- stack(lf_tiles_m)
+
+r_stack # 6 tiles: original values
+r_weights_m #6 tiles with weights between 0-1
+r_weights_prod_m #6 tiles with multiplication of weights and original values
+r_weight_sum
+
+#debug(grid_sampling_raster)
+grid_samples_sf <- grid_sampling_raster(x_sampling=4,y_sampling=4,r=r_stack)
+
+grid_samples_sp <- as(grid_samples_sf,"Spatial")
+
+x_val_orig <- extract(r_stack,grid_samples_sp,df=T)
+x_val_w <- extract(r_weights_m,grid_samples_sp,df=T)
+x_val_w_p <- extract(r_weights_prod_m,grid_samples_sp,df=T)
+x_val_w_s <- extract(r_weight_sum,grid_samples_sp,df=T)
+x_val_s <- extract(r_sum,grid_samples_sp,df=T)
+r_test_w_p <- r_stack*r_weights_m
+plot(r_test_w_p)
+r_zero <- r_test_w_p - r_weights_prod_m
+plot(r_zero)
+
+test <- x_val_orig[1,]*x_val_w[1,]
+test
+x_val_w_p[1,] - test
+
+
+r_we
+sum(x_val_w[1,],na.rm=T)
+plot(r_weight_sum)
+x_val_w_s[1,]
+r_weight_sum <- raster(r_weights_sum_raster_name)
+r_weight_prod_sum <- raster(r_prod_sum_raster_name)
+plot(r_weight_prod_sum)
+
+r_test <- r_weight_sum
+r_sum<- calc(r_weights_m,fun=sum, na.rm=T)
+r_prod_sum <- calc(r_weights_prod_m,fun=sum,na.rm=T)
+
+r_diff <- r_weight_sum - r_sum 
+r_diff <- r_weight_prod_sum - r_prod_sum 
+
+plot(r_diff)
+
+x_val_s
+plot(r_sum)
+#r <- calc(, fun=sum)#. However, calc should be faster when using complex formulas on large datasets. With calc it is possible to set an output filename and file type preferences.
+r_sum
+p
+View(x_val)
+plot(r_stack,y=1)
+plot(grid_samples_sp,add=T)
+
+
+plot(r_stack)
+#(2*x1 + 3* x2 + 1.5 x3)/2+3+1.5 
+
+
+r_average <- raster(r_m_weighted_mean_raster_name)
+plot(r_average)
+
+r_test_avg <- r_weight_prod_sum / r_weight_sum
+
+plot(r_test_avg)
+r_diff_avg <- r_test_avg - r_average
+plot(r_diff_avg)
+
+r1 <- raster(raster_name_rec1)
+plot(r1)
+r2 <- raster(raster_name_rec2)
+
+r_out <- raster(r_m_weighted_mean_raster_name_rec)
+plot(r_out)
 
 ##########################################  END OF SCRIPT  ##############################
