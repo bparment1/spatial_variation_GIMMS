@@ -4,7 +4,7 @@
 ## General processing function for climatelandfeedback
 ##
 ## DATE CREATED: 01/24/2018
-## DATE MODIFIED: 09/04/2018
+## DATE MODIFIED: 09/06/2018
 ## AUTHORS: Benoit Parmentier  
 ## Version: 1
 ## PROJECT: spatial variability landscape
@@ -57,7 +57,7 @@ gimms_processing_functions <- "GIMMS_processing_functions_07252018.R" #Functions
 generate_tiles_functions <- "generate_spatial_tiles_functions_07102018.R" #Functions used to mosaic predicted tiles
 lag_processing_functions <- "lag_processing_functions_07302018.R"
 get_study_region_functions <- "get_study_region_data_07252018.R"
-mosaicing_functions <- "weighted_mosaicing_functions_08302018.R"
+mosaicing_functions <- "weighted_mosaicing_functions_09052018.R"
 raster_processing_functions <- "raster_processing_functions_08312018.R"
 source(file.path(script_path,gimms_processing_functions)) #source all functions used in this script 
 source(file.path(script_path,generate_tiles_functions))
@@ -83,7 +83,7 @@ scaling_factor <- 0.0001 #MODIFY THE SCALING FACTOR - FOR NORMALIZED DATA SHOULD
 #ARGS 6
 create_out_dir_param=TRUE #create a new ouput dir if TRUE
 #ARGS 7
-out_suffix <-"GIMMS_processing_09042018" #output suffix for the files and ouptut folder
+out_suffix <-"GIMMS_processing_09062018" #output suffix for the files and ouptut folder
 #ARGS 8
 num_cores <- 4 # number of cores
 #ARGS 9
@@ -565,7 +565,7 @@ if(processing_steps$mosaicing==TRUE){
 }
 
 #########################################
-########### PART 5: Results: Examining lag information and variability ###########
+b########### PART 5: Results: Examining lag information and variability ###########
 
 #list.files(out_dir)
 list_dirs_outputs <- list.dirs(out_dir)
@@ -574,26 +574,38 @@ list_dir_mosaics <- list_dirs_outputs[grepl("date_outputs_date.*.",list_dirs_out
 
 lf <- mixedsort(list.files(list_dir_mosaics[[1]],
                            pattern="r_m_.*.mean_masked.*.tif",full.names=T))
-r_stack <- stack(lf) 
+
+lf2 <- mixedsort(list.files(list_dir_mosaics[[1]],
+                           pattern="r_m_.*.mean_masked.*.tif",full.names=T))
+lf1 <- mixedsort(list.files(list_dir_mosaics[[1]],
+                           pattern="r_m_.*.mean_b.*.tif",full.names=T))
+
+
+r1 <- stack(lf1)
+r2 <- stack(lf2)
+
+r_val <- r1$r_m_use_edge_weights_weighted_mean_b_1_date_10_use_edge_weights_GIMMS_processing_09062018 - r1$r_m_use_edge_weights_weighted_mean_b_1_date_10_use_edge_weights_GIMMS_processing_09062018
+#r_val
+
+r_stack <- stack(lf)
+
 #plot(r_stack)
 plot(r_stack,y=1)
 
 plot(subset(r_test,1),add=T)
 e <- extent(r_test)
 plot(e,add=T)
-plot(grid_samples_sp[9,],add=T)
-plot(grid_samples_sp[10,],add=T)
 
+##### Generate points to extract values from
 
 #debug(grid_sampling_raster)
 grid_samples_sf <- grid_sampling_raster(x_sampling=4,y_sampling=4,r=r_stack)
 
 grid_samples_sp <- as(grid_samples_sf,"Spatial")
+plot(grid_samples_sp)
 
-x_val <- extract(r_stack,grid_samples_sp,df=T)
-#class(x_val)
+x_val <- raster::extract(r_stack,grid_samples_sp,df=T)
 dim(x_val)
-x_val <- as(x_val,"sf")
 
 plot(as.numeric(x_val[1,2:11]),type="l")
 plot(as.numeric(x_val[2,2:11]),type="l")
@@ -602,29 +614,6 @@ plot(as.numeric(x_val[10,2:11]),type="l")
 plot(as.numeric(x_val[4,2:11]),type="l")
 plot(as.numeric(x_val[5,2:11]),type="l")
 plot(as.numeric(x_val[6,2:11]),type="l")
-
-x_val_test <- extract(r_test,grid_samples_sp,df=T)
-x_val_test
-
-x_val_test[9,] - x_val[9,]
-x_val_test[10,] - x_val[10,]
-
-plot(as.numeric(x_val[9,2:11]),type="l")
-barplot(as.numeric(x_val_test[9,2:11]),col="red",type="l")
-
-plot(as.numeric(x_val_test[10,2:11]),col="red",type="l")
-lines(as.numeric(x_val[10,2:11]),type="l")
-
-
-
-#View(x_val)
-
-animate(r_stack) ## Generate movie later on:
-
-#plot(x_val[1,],type="l",ylim=c(-1.2,1.2))
-#lines(x_val[2,],type="l",col="red")
-#lines(x_val[3,],type="l",col="green")
-#lines(x_val[4,],type="l",col="blue")
 
 #names(moran_df) <- c("moran_I","lag")
 #plot(moran_df$moran_I ~moran_df$lag)
@@ -649,98 +638,5 @@ animate(r_stack) ## Generate movie later on:
 #print(p)
 
 #dev.off()
-
-
-### Checking outputs:
-
-lf_mosaic
-
-lf_files <- unlist(lf_mosaic)
-
-##Maching resolution is probably only necessary for the r mosaic function
-#Modify later to take into account option R or python...
-out_suffix_str_tmp <- "check"
-list_param_raster_match <- list(lf_files,rast_ref,file_format,python_bin,out_suffix_str_tmp,out_dir_str)
-names(list_param_raster_match) <- c("lf_files","rast_ref","file_format","python_bin","out_suffix","out_dir_str")
-
-#undebug(raster_match)
-#r_test <- raster_match(1,list_param_raster_match)
-#r_test <- raster(raster_match(1,list_param_raster_match))
-
-lf_tiles_m <- mclapply(1:length(lf_files),FUN=raster_match,list_param=list_param_raster_match,mc.preschedule=FALSE,mc.cores = num_cores)                           
-
-r_stack <- stack(lf_tiles_m)
-
-r_stack # 6 tiles: original values
-r_weights_m #6 tiles with weights between 0-1
-r_weights_prod_m #6 tiles with multiplication of weights and original values
-r_weight_sum
-
-#debug(grid_sampling_raster)
-grid_samples_sf <- grid_sampling_raster(x_sampling=4,y_sampling=4,r=r_stack)
-
-grid_samples_sp <- as(grid_samples_sf,"Spatial")
-
-x_val_orig <- extract(r_stack,grid_samples_sp,df=T)
-x_val_w <- extract(r_weights_m,grid_samples_sp,df=T)
-x_val_w_p <- extract(r_weights_prod_m,grid_samples_sp,df=T)
-x_val_w_s <- extract(r_weight_sum,grid_samples_sp,df=T)
-x_val_s <- extract(r_sum,grid_samples_sp,df=T)
-r_test_w_p <- r_stack*r_weights_m
-plot(r_test_w_p)
-r_zero <- r_test_w_p - r_weights_prod_m
-plot(r_zero)
-
-test <- x_val_orig[1,]*x_val_w[1,]
-test
-x_val_w_p[1,] - test
-
-
-r_we
-sum(x_val_w[1,],na.rm=T)
-plot(r_weight_sum)
-x_val_w_s[1,]
-r_weight_sum <- raster(r_weights_sum_raster_name)
-r_weight_prod_sum <- raster(r_prod_sum_raster_name)
-plot(r_weight_prod_sum)
-
-r_test <- r_weight_sum
-r_sum<- calc(r_weights_m,fun=sum, na.rm=T)
-r_prod_sum <- calc(r_weights_prod_m,fun=sum,na.rm=T)
-
-r_diff <- r_weight_sum - r_sum 
-r_diff <- r_weight_prod_sum - r_prod_sum 
-
-plot(r_diff)
-
-x_val_s
-plot(r_sum)
-#r <- calc(, fun=sum)#. However, calc should be faster when using complex formulas on large datasets. With calc it is possible to set an output filename and file type preferences.
-r_sum
-p
-View(x_val)
-plot(r_stack,y=1)
-plot(grid_samples_sp,add=T)
-
-
-plot(r_stack)
-#(2*x1 + 3* x2 + 1.5 x3)/2+3+1.5 
-
-
-r_average <- raster(r_m_weighted_mean_raster_name)
-plot(r_average)
-
-r_test_avg <- r_weight_prod_sum / r_weight_sum
-
-plot(r_test_avg)
-r_diff_avg <- r_test_avg - r_average
-plot(r_diff_avg)
-
-r1 <- raster(raster_name_rec1)
-plot(r1)
-r2 <- raster(raster_name_rec2)
-
-r_out <- raster(r_m_weighted_mean_raster_name_rec)
-plot(r_out)
 
 ##########################################  END OF SCRIPT  ##############################
